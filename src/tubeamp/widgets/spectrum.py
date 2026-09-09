@@ -45,6 +45,14 @@ class SpectrumWidget(Widget):
         self._bar_color = bar_color
         self._bar_color_top = bar_color_top
 
+    @property
+    def num_bars(self) -> int:
+        return self._num_bars
+
+    @num_bars.setter
+    def num_bars(self, count: int) -> None:
+        self._num_bars = count
+
     def set_gradient(self, color_bottom: str, color_top: str) -> None:
         """Set a vertical gradient from color_bottom (base) to color_top (peaks)."""
         self._bar_color = color_bottom

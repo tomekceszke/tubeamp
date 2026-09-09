@@ -4,24 +4,35 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import datetime
 import logging
+import random
+import threading
+import time
+from collections.abc import Callable
+from functools import partial
 from pathlib import Path
-from typing import Any, TypeVar
+from typing import Any, TypeVar, cast
 
-from rich.text import Text
 from textual.app import App, ComposeResult
 from textual.binding import Binding
 from textual.containers import Horizontal, Vertical, VerticalScroll
 from textual.widget import Widget
-from textual.widgets import Static
 
 from tubeamp.config import AppConfig
 from tubeamp.player import PlaybackState, Player, TrackInfo
-from tubeamp.themes import get_theme, get_theme_names, to_textual_theme
+from tubeamp.playlist_session import PlaylistSession
+from tubeamp.themes import get_theme, get_theme_names
+from tubeamp.theming import apply_theme
 from tubeamp.visualizer import BaseVisualizer, create_visualizer
 from tubeamp.widgets.controls import ControlsWidget
 from tubeamp.widgets.playlist import PlaylistEntry, PlaylistWidget
 from tubeamp.widgets.search import SearchScreen
+from tubeamp.widgets.separators import (
+    PanelDivider,
+    PanelSeparator,
+    SectionSeparator,
+)
 from tubeamp.widgets.spectrum import SpectrumWidget
 from tubeamp.widgets.theme_picker import ThemePickerScreen
 from tubeamp.widgets.track_info import TrackInfoWidget
@@ -35,42 +46,13 @@ CSS_PATH = Path(__file__).parent / "styles" / "tubeamp.tcss"
 SEEK_THROTTLE_INTERVAL = 0.1  # seconds between seeks
 LAZY_LOAD_THRESHOLD = 5  # tracks from end to trigger lazy load
 
+_CONTROL_STATES = {
+    PlaybackState.STOPPED: "stopped",
+    PlaybackState.PLAYING: "playing",
+    PlaybackState.PAUSED: "paused",
+}
+
 W = TypeVar("W", bound=Widget)
-
-
-class PanelDivider(Widget):
-    """Vertical box-drawing divider between spectrum and controls panels."""
-
-    def render(self) -> Text:
-        h = self.size.height
-        return Text("\n".join(["║"] * max(h, 1)), style="#333333")
-
-
-class SectionSeparator(Static):
-    """Horizontal box-drawing separator between sections."""
-
-    def on_mount(self) -> None:
-        self._draw()
-
-    def on_resize(self) -> None:
-        self._draw()
-
-    def _draw(self) -> None:
-        self.update("─" * max(self.size.width, 40))
-
-
-class PanelSeparator(Static):
-    """Thinner horizontal separator for inside panels."""
-
-    def on_mount(self) -> None:
-        self._draw()
-
-    def on_resize(self) -> None:
-        self._draw()
-
-    def _draw(self) -> None:
-        w = max(self.size.width - 2, 10)
-        self.update("─" * w)
 
 
 class TubeAmpApp(App[None]):
@@ -93,6 +75,8 @@ class TubeAmpApp(App[None]):
         Binding("equals_sign", "volume_up", "Vol+", show=False),
         Binding("s", "toggle_shuffle", "Shuffle", show=True),
         Binding("r", "toggle_repeat", "Repeat", show=True),
+        Binding("comma", "prev_track", "Prev", show=True),
+        Binding("full_stop", "next_track", "Next", show=True),
         Binding("t", "theme_picker", "Theme", show=True),
         Binding("slash", "search", "Search", show=True),
         Binding("n", "playlist_down", "Down", show=False),
@@ -117,19 +101,11 @@ class TubeAmpApp(App[None]):
         self._player: Player | None = None
         self._youtube: YouTubeService | None = None
         self._visualizer: BaseVisualizer | None = None
-        self._spectrum_widget: SpectrumWidget | None = None
-        self._playlist_tracks: list[YouTubeTrack] = []
-        self._current_index: int = -1
+        self._widget_cache: dict[str, Widget] = {}
+        self._session = PlaylistSession()
         self._shuffle = False
         self._repeat_mode = "off"
         self._last_seek_time: float = 0.0
-
-        # Lazy loading state
-        self._playlist_url: str | None = None
-        self._search_query: str | None = None
-        self._playlist_loaded_count: int = 0
-        self._playlist_has_more: bool = False
-        self._is_loading_more: bool = False
 
     def compose(self) -> ComposeResult:
         with Vertical(id="player-container"):
@@ -160,10 +136,15 @@ class TubeAmpApp(App[None]):
                 volume=self._config.audio.volume,
                 quality=self._config.audio.quality,
             )
-            self._player.on("track_changed", self._on_track_changed)
-            self._player.on("position_changed", self._on_position_changed)
-            self._player.on("state_changed", self._on_state_changed)
-            self._player.on("track_ended", self._on_track_ended)
+            # Player events arrive on mpv's thread, so every handler is
+            # marshalled onto the main thread before it touches a widget
+            for event, handler in (
+                ("track_changed", self._update_track_info),
+                ("position_changed", self._update_position),
+                ("state_changed", self._update_state),
+                ("track_ended", self._play_next),
+            ):
+                self._player.on(event, partial(self._safe_call, handler))
             logger.info("Player initialized")
         except Exception:
             logger.exception("Failed to initialize player")
@@ -173,13 +154,7 @@ class TubeAmpApp(App[None]):
             cookies_browser=self._config.youtube.cookies_browser,
         )
 
-        self._visualizer = create_visualizer(
-            bars=self._config.visualizer.bars,
-            framerate=self._config.visualizer.framerate,
-            sensitivity=self._config.visualizer.sensitivity,
-            backend=self._config.visualizer.backend,
-            cookies_browser=self._config.youtube.cookies_browser,
-        )
+        self._visualizer = self._make_visualizer()
         self._visualizer.start()
 
         self.set_interval(
@@ -187,45 +162,62 @@ class TubeAmpApp(App[None]):
             self._refresh_visualizer,
         )
 
-        # Cache spectrum widget reference to avoid repeated tree walks
-        self._spectrum_widget = self.query_one("#spectrum", SpectrumWidget)
-
-        controls = self.query_one("#controls", ControlsWidget)
-        controls.volume = self._config.audio.volume
-        volume_widget = self.query_one("#volume-bar", VolumeWidget)
-        volume_widget.volume = self._config.audio.volume
+        self._controls.volume = self._config.audio.volume
+        self._volume_bar.volume = self._config.audio.volume
 
         if self._config.youtube.default_playlist:
             logger.info("Loading default playlist: %s", self._config.youtube.default_playlist)
-            playlist = self.query_one("#playlist", PlaylistWidget)
-            playlist.set_loading(True)
+            self._playlist.set_loading(True)
             self.call_later(lambda: self.run_worker(
                 self._handle_search_result(self._config.youtube.default_playlist),
                 exclusive=True,
             ))
 
-    # ── Widget Query Helper ────────────────────────────────────
+    # ── Widget Access ──────────────────────────────────────────
 
-    def _query_widget(self, selector: str, widget_type: type[W]) -> W | None:
-        """Query a widget, returning None if not found."""
-        try:
-            return self.query_one(selector, widget_type)
-        except Exception:
-            return None
+    def _widget(self, selector: str, widget_type: type[W]) -> W:
+        """Look a widget up once and keep it.
+
+        compose() builds the tree and never changes it, so re-walking it on
+        every keypress and every position tick is wasted work.
+        """
+        cached = self._widget_cache.get(selector)
+        if cached is None:
+            cached = self.query_one(selector, widget_type)
+            self._widget_cache[selector] = cached
+        return cast("W", cached)
+
+    @property
+    def _playlist(self) -> PlaylistWidget:
+        return self._widget("#playlist", PlaylistWidget)
+
+    @property
+    def _controls(self) -> ControlsWidget:
+        return self._widget("#controls", ControlsWidget)
+
+    @property
+    def _track_info(self) -> TrackInfoWidget:
+        return self._widget("#track-info", TrackInfoWidget)
+
+    @property
+    def _volume_bar(self) -> VolumeWidget:
+        return self._widget("#volume-bar", VolumeWidget)
+
+    @property
+    def _spectrum(self) -> SpectrumWidget:
+        return self._widget("#spectrum", SpectrumWidget)
 
     # ── Visualizer ──────────────────────────────────────────────
 
     def _refresh_visualizer(self) -> None:
         """Timer callback: fetch bar data and push to spectrum widget."""
-        if self._visualizer and self._spectrum_widget:
-            bars = self._visualizer.get_bars()
-            self._spectrum_widget.update_bars(bars)
+        if self._visualizer:
+            self._spectrum.update_bars(self._visualizer.get_bars())
 
     # ── Player Event Handlers ───────────────────────────────────
 
     def _safe_call(self, fn: Any, *args: Any) -> None:
         """Call a function on the main thread, handling both same-thread and cross-thread."""
-        import threading
         try:
             if threading.current_thread() is threading.main_thread():
                 fn(*args)
@@ -234,95 +226,62 @@ class TubeAmpApp(App[None]):
         except Exception:
             logger.exception("Error in safe_call for %s", fn.__name__)
 
-    def _on_track_changed(self, track: TrackInfo) -> None:
-        """Handle track change from mpv."""
-        self._safe_call(self._update_track_info, track)
-
     def _update_track_info(self, track: TrackInfo) -> None:
-        track_info = self.query_one("#track-info", TrackInfoWidget)
-        track_info.update_track(
+        self._track_info.update_track(
             title=track.title,
             artist=track.artist,
             duration=track.duration,
         )
 
-    def _on_position_changed(self, position: float) -> None:
-        """Handle playback position update."""
-        self._safe_call(self._update_position, position)
-
     def _update_position(self, position: float) -> None:
-        track_info = self.query_one("#track-info", TrackInfoWidget)
-        track_info.update_position(position)
+        self._track_info.update_position(position)
         if self._visualizer:
             self._visualizer.set_position(position)
 
-    def _on_state_changed(self, state: PlaybackState) -> None:
-        """Handle playback state change."""
-        self._safe_call(self._update_state, state)
-
     def _update_state(self, state: PlaybackState) -> None:
-        controls = self.query_one("#controls", ControlsWidget)
-        if state == PlaybackState.STOPPED:
-            controls.playback_state = "stopped"
-        elif state == PlaybackState.PLAYING:
-            controls.playback_state = "playing"
-        elif state == PlaybackState.PAUSED:
-            controls.playback_state = "paused"
+        label = _CONTROL_STATES.get(state)
+        if label:
+            self._controls.playback_state = label
 
-        is_playing = state in (PlaybackState.PLAYING, PlaybackState.BUFFERING)
         if self._visualizer:
-            self._visualizer.set_playing(is_playing)
-
-    def _on_track_ended(self) -> None:
-        """Handle end of track — advance to next."""
-        self._safe_call(self._play_next)
+            self._visualizer.set_playing(
+                state in (PlaybackState.PLAYING, PlaybackState.BUFFERING)
+            )
 
     # ── YouTube Search ──────────────────────────────────────────
 
     def _do_search(self, query: str) -> list[YouTubeTrack]:
-        """Run YouTube search in a worker thread (blocking yt-dlp call)."""
+        """Resolve a query in a worker thread (blocking yt-dlp call).
+
+        A query is a playlist URL, a single video URL, or search terms; the
+        session records which, so lazy loading knows where to page from.
+        """
         if not self._youtube:
             return []
 
-        if query.startswith(("http://", "https://", "www.")):
-            if "playlist" in query or "list=" in query:
-                batch_size = self._calculate_playlist_batch_size()
-                self._playlist_url = query
-                self._search_query = None
-                self._playlist_loaded_count = 0
-                self._playlist_has_more = True
-                tracks = self._youtube.get_playlist(query, max_items=batch_size)
-                self._playlist_loaded_count = len(tracks)
-                logger.info(
-                    "Initially loaded %d tracks from playlist (batch size: %d)",
-                    len(tracks), batch_size,
-                )
-                return tracks
-            else:
-                self._playlist_url = None
-                self._search_query = None
-                self._playlist_has_more = False
-                track = self._youtube.get_track_info(query)
-                return [track] if track else []
+        is_url = query.startswith(("http://", "https://", "www."))
+
+        if is_url and not ("playlist" in query or "list=" in query):
+            self._session.start_single_track()
+            track = self._youtube.get_track_info(query)
+            return [track] if track else []
+
+        batch_size = self._calculate_playlist_batch_size()
+        if is_url:
+            self._session.start_playlist(query)
+            tracks = self._youtube.get_playlist(query, max_items=batch_size)
         else:
-            batch_size = self._calculate_playlist_batch_size()
-            self._playlist_url = None
-            self._search_query = query
-            self._playlist_loaded_count = 0
-            self._playlist_has_more = True
+            self._session.start_search(query)
             tracks = self._youtube.search(query, max_results=batch_size)
-            self._playlist_loaded_count = len(tracks)
-            logger.info(
-                "Initially loaded %d search results (batch size: %d)",
-                len(tracks), batch_size,
-            )
-            return tracks
+
+        self._session.loaded_count = len(tracks)
+        logger.info("Loaded %d tracks (batch size: %d)", len(tracks), batch_size)
+        return tracks
 
     def _calculate_playlist_batch_size(self) -> int:
         """Calculate optimal batch size based on playlist viewport height."""
         try:
-            playlist = self.query_one("#playlist", PlaylistWidget)
-            scroll_container = playlist.query_one("#playlist-scroll", VerticalScroll)
+            scroll_container = self._playlist.query_one("#playlist-scroll", VerticalScroll)
             visible_height = scroll_container.size.height
 
             if visible_height == 0:
@@ -341,36 +300,35 @@ class TubeAmpApp(App[None]):
             return 15
 
     async def _handle_search_result(self, query: str) -> None:
-        """Execute search and load results into playlist."""
+        """Execute search and load results into self._playlist."""
         logger.info("Searching: %s", query)
-        playlist = self.query_one("#playlist", PlaylistWidget)
 
         loop = asyncio.get_running_loop()
         try:
             tracks = await loop.run_in_executor(None, self._do_search, query)
         except Exception as e:
             logger.exception("Search failed")
-            playlist.set_loading(False)
+            self._playlist.set_loading(False)
             self.notify(f"Search failed: {e}", severity="error", timeout=5)
             return
 
         if not tracks:
-            playlist.set_loading(False)
+            self._playlist.set_loading(False)
             self.notify("No results found", severity="warning", timeout=3)
             return
 
         self._load_search_results(tracks)
-        playlist.set_loading(False)
+        self._playlist.set_loading(False)
 
     # ── Playlist Management ─────────────────────────────────────
 
     def _play_track(self, index: int) -> None:
         """Play a specific track from the playlist by index."""
-        if not (0 <= index < len(self._playlist_tracks)):
+        if not (0 <= index < len(self._session.tracks)):
             return
 
-        track = self._playlist_tracks[index]
-        self._current_index = index
+        track = self._session.tracks[index]
+        self._session.current_index = index
 
         if self._player:
             track_info = TrackInfo(
@@ -380,9 +338,7 @@ class TubeAmpApp(App[None]):
                 url=track.watch_url,
             )
             self._player.play(track.watch_url, track_info)
-
-            playlist_widget = self.query_one("#playlist", PlaylistWidget)
-            playlist_widget.playing_index = index
+            self._playlist.playing_index = index
 
             # Kick off pre-analysis for the analyzed visualizer backend
             if self._visualizer:
@@ -392,18 +348,17 @@ class TubeAmpApp(App[None]):
 
     def _play_next(self) -> None:
         """Advance to next track, respecting repeat/shuffle."""
-        if not self._playlist_tracks:
+        if not self._session.tracks:
             return
 
         if self._repeat_mode == "one":
-            self._play_track(self._current_index)
+            self._play_track(self._session.current_index)
         elif self._shuffle:
-            import random
-            next_idx = random.randint(0, len(self._playlist_tracks) - 1)
+            next_idx = random.randint(0, len(self._session.tracks) - 1)
             self._play_track(next_idx)
         else:
-            next_idx = self._current_index + 1
-            if next_idx >= len(self._playlist_tracks):
+            next_idx = self._session.current_index + 1
+            if next_idx >= len(self._session.tracks):
                 if self._repeat_mode == "all":
                     next_idx = 0
                 else:
@@ -412,9 +367,9 @@ class TubeAmpApp(App[None]):
 
     def _play_prev(self) -> None:
         """Go to previous track."""
-        if not self._playlist_tracks:
+        if not self._session.tracks:
             return
-        prev_idx = max(0, self._current_index - 1)
+        prev_idx = max(0, self._session.current_index - 1)
         self._play_track(prev_idx)
 
     @staticmethod
@@ -426,19 +381,18 @@ class TubeAmpApp(App[None]):
 
     def _load_search_results(self, tracks: list[YouTubeTrack]) -> None:
         """Load search results into the playlist widget."""
-        self._playlist_tracks = tracks
-        self._current_index = -1
-        self._is_loading_more = False
-        playlist = self.query_one("#playlist", PlaylistWidget)
+        self._session.tracks = tracks
+        self._session.current_index = -1
+        self._session.is_loading_more = False
         entries = [self._make_playlist_entry(t) for t in tracks]
-        playlist.set_entries(entries, reset=True)
+        self._playlist.set_entries(entries, reset=True)
 
     # ── Action Handlers (keybindings) ───────────────────────────
 
     def action_toggle_play(self) -> None:
         if self._player:
-            if self._player.state == PlaybackState.STOPPED and self._playlist_tracks:
-                idx = max(0, self._current_index)
+            if self._player.state == PlaybackState.STOPPED and self._session.tracks:
+                idx = max(0, self._session.current_index)
                 self._play_track(idx)
             else:
                 self._player.pause()
@@ -458,7 +412,6 @@ class TubeAmpApp(App[None]):
         if not self._player or self._player.state == PlaybackState.STOPPED:
             return
 
-        import time
         now = time.time()
         if now - self._last_seek_time < SEEK_THROTTLE_INTERVAL:
             return
@@ -481,12 +434,8 @@ class TubeAmpApp(App[None]):
         """Sync volume display after a volume change."""
         if not self._player:
             return
-        controls = self._query_widget("#controls", ControlsWidget)
-        volume_widget = self._query_widget("#volume-bar", VolumeWidget)
-        if controls:
-            controls.volume = self._player.volume
-        if volume_widget:
-            volume_widget.volume = self._player.volume
+        self._controls.volume = self._player.volume
+        self._volume_bar.volume = self._player.volume
         self._config.audio.volume = self._player.volume
 
     def action_volume_up(self) -> None:
@@ -501,15 +450,13 @@ class TubeAmpApp(App[None]):
 
     def action_toggle_shuffle(self) -> None:
         self._shuffle = not self._shuffle
-        controls = self.query_one("#controls", ControlsWidget)
-        controls.shuffle = self._shuffle
+        self._controls.shuffle = self._shuffle
 
     def action_toggle_repeat(self) -> None:
         modes = ["off", "all", "one"]
         current_idx = modes.index(self._repeat_mode)
         self._repeat_mode = modes[(current_idx + 1) % len(modes)]
-        controls = self.query_one("#controls", ControlsWidget)
-        controls.repeat_mode = self._repeat_mode
+        self._controls.repeat_mode = self._repeat_mode
 
     def action_search(self) -> None:
         """Open search modal and query YouTube."""
@@ -518,8 +465,7 @@ class TubeAmpApp(App[None]):
     def _on_search_dismissed(self, query: str | None) -> None:
         """Handle search modal result."""
         if query:
-            playlist = self.query_one("#playlist", PlaylistWidget)
-            playlist.set_loading(True)
+            self._playlist.set_loading(True)
             self.run_worker(self._handle_search_result(query), exclusive=True)
 
     def action_theme_picker(self) -> None:
@@ -540,157 +486,97 @@ class TubeAmpApp(App[None]):
             self.notify(f"Theme changed to {self._theme.name}", timeout=2)
 
     def _apply_theme(self) -> None:
-        """Apply the current theme to all widgets."""
-        theme = self._theme
+        apply_theme(self, self._theme)
 
-        container = self._query_widget("#player-container", Widget)
-        if container:
-            container.styles.border = ("heavy", theme.primary)
-
-        spectrum = self._query_widget("#spectrum", SpectrumWidget)
-        if spectrum:
-            spectrum.set_gradient(theme.primary_dim, theme.primary_bright)
-
-        playlist = self._query_widget("#playlist", PlaylistWidget)
-        if playlist:
-            playlist.set_theme(
-                selection_bg=theme.selection_bg,
-                selection_fg=theme.selection_fg,
-                playing_color=theme.playing,
-            )
-
-        controls = self._query_widget("#controls", ControlsWidget)
-        if controls:
-            controls.set_theme(
-                primary=theme.primary_bright,
-                shuffle_active=theme.shuffle_active,
-                repeat_all=theme.repeat_all,
-                repeat_one=theme.repeat_one,
-            )
-
-        track_info = self._query_widget("#track-info", TrackInfoWidget)
-        if track_info:
-            track_info.set_theme(primary=theme.primary_bright, primary_dim=theme.primary_dim)
-
-        volume = self._query_widget("#volume-bar", VolumeWidget)
-        if volume:
-            volume.set_theme(bar_color=theme.primary_dim, bar_color_top=theme.primary_bright)
-
-        # Register as Textual theme so toasts/scrollbars pick up our colors
-        try:
-            textual_theme = to_textual_theme(theme)
-            self.register_theme(textual_theme)
-            self.theme = textual_theme.name
-        except Exception:
-            logger.warning("Failed to register Textual theme")
-
-        logger.info("Theme %s applied", theme.name)
+    def _move_selection(self, move: Callable[[], None]) -> None:
+        """Move the highlight, then page in more tracks if we are near the end."""
+        move()
+        self._check_lazy_load()
 
     def action_playlist_down(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.select_next()
-        self._check_lazy_load()
+        self._move_selection(self._playlist.select_next)
 
     def action_playlist_up(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.select_prev()
+        self._move_selection(self._playlist.select_prev)
 
     def action_playlist_page_down(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.select_page_down()
-        self._check_lazy_load()
+        self._move_selection(self._playlist.select_page_down)
 
     def action_playlist_page_up(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.select_page_up()
+        self._move_selection(self._playlist.select_page_up)
 
     def action_playlist_home(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.select_first()
+        self._move_selection(self._playlist.select_first)
 
     def action_playlist_end(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.select_last()
-        self._check_lazy_load()
+        self._move_selection(self._playlist.select_last)
 
     def _check_lazy_load(self) -> None:
-        """Check if we should load more tracks (lazy loading)."""
-        if not self._playlist_has_more or self._is_loading_more:
+        if not self._session.can_load_more:
             return
-
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        tracks_remaining = len(self._playlist_tracks) - playlist.selected_index
-
-        if tracks_remaining <= LAZY_LOAD_THRESHOLD:
+        remaining = len(self._session.tracks) - self._playlist.selected_index
+        if remaining <= LAZY_LOAD_THRESHOLD:
             self.run_worker(self._load_more_tracks(), exclusive=False)
 
+    def _fetch_page(self, wanted: int) -> list[YouTubeTrack]:
+        """Re-fetch the current source asking for `wanted` items.
+
+        yt-dlp exposes no cursor, so paging means asking for a larger prefix
+        and keeping the tail we have not seen.
+        """
+        session = self._session
+        if not self._youtube:
+            return []
+        if session.playlist_url:
+            return self._youtube.get_playlist(session.playlist_url, max_items=wanted)
+        if session.search_query:
+            return self._youtube.search(session.search_query, max_results=wanted)
+        return []
+
     async def _load_more_tracks(self) -> None:
-        """Load more tracks from the playlist or search results."""
-        if not self._youtube or self._is_loading_more:
+        """Append the next page of the playlist or search results."""
+        session = self._session
+        if not session.can_load_more:
             return
 
-        if not self._playlist_url and not self._search_query:
-            return
-
-        self._is_loading_more = True
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.set_loading(True)
+        session.is_loading_more = True
+        self._playlist.set_loading(True)
         self.notify("Loading more tracks...", timeout=2)
 
         try:
+            wanted = session.loaded_count + self._calculate_playlist_batch_size()
             loop = asyncio.get_running_loop()
-            batch_size = self._calculate_playlist_batch_size()
+            fetched = await loop.run_in_executor(None, self._fetch_page, wanted)
 
-            if self._playlist_url:
-                new_tracks = await loop.run_in_executor(
-                    None,
-                    lambda: self._youtube.get_playlist(
-                        self._playlist_url,
-                        max_items=self._playlist_loaded_count + batch_size
-                    )
-                )
-            else:  # self._search_query
-                new_tracks = await loop.run_in_executor(
-                    None,
-                    lambda: self._youtube.search(
-                        self._search_query,
-                        max_results=self._playlist_loaded_count + batch_size
-                    )
-                )
-
-            actual_new_tracks = new_tracks[self._playlist_loaded_count:]
-
-            if actual_new_tracks:
-                self._playlist_tracks.extend(actual_new_tracks)
-                self._playlist_loaded_count = len(new_tracks)
-
-                for t in actual_new_tracks:
-                    playlist.append_entry(self._make_playlist_entry(t))
-
-                logger.info(
-                    "Loaded %d more tracks (total: %d)",
-                    len(actual_new_tracks), len(self._playlist_tracks),
-                )
-                self.notify(f"Loaded {len(actual_new_tracks)} more tracks", timeout=2)
-            else:
-                self._playlist_has_more = False
+            new_tracks = fetched[session.loaded_count:]
+            if not new_tracks:
+                session.has_more = False
                 logger.info("No more tracks to load")
+                return
+
+            session.tracks.extend(new_tracks)
+            session.loaded_count = len(fetched)
+            for track in new_tracks:
+                self._playlist.append_entry(self._make_playlist_entry(track))
+
+            logger.info(
+                "Loaded %d more tracks (total: %d)",
+                len(new_tracks), len(session.tracks),
+            )
+            self.notify(f"Loaded {len(new_tracks)} more tracks", timeout=2)
 
         except Exception as e:
             logger.exception("Failed to load more tracks")
             self.notify(f"Failed to load more tracks: {e}", severity="error", timeout=3)
         finally:
-            self._is_loading_more = False
-            playlist = self.query_one("#playlist", PlaylistWidget)
-            playlist.set_loading(False)
+            session.is_loading_more = False
+            self._playlist.set_loading(False)
 
     def action_playlist_select(self) -> None:
-        playlist = self.query_one("#playlist", PlaylistWidget)
-        playlist.confirm_selection()
+        self._playlist.confirm_selection()
 
     def action_screenshot(self) -> None:
         """Save a screenshot of the current UI."""
-        import datetime
         timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         path = f"tubeamp_screenshot_{timestamp}.svg"
         self.save_screenshot(path)
@@ -698,8 +584,9 @@ class TubeAmpApp(App[None]):
 
     def action_help(self) -> None:
         self.notify(
-            "Space=Play/Pause  x=Stop  Up/Down=Navigate  Enter=Play  Left/Right=Seek  -/+=Vol  "
-            "s=Shuffle  r=Repeat  t=Theme  /=Search  h=Help  q=Quit",
+            "Space=Play/Pause  x=Stop  ,/.=Prev/Next  Up/Down=Navigate  Enter=Play  "
+            "Left/Right=Seek  -/+=Vol  [/]=Bars  s=Shuffle  r=Repeat  t=Theme  "
+            "/=Search  F12=Screenshot  h=Help  q=Quit",
             timeout=10,
         )
 
@@ -726,42 +613,31 @@ class TubeAmpApp(App[None]):
         """Restart visualizer with new settings."""
         self.run_worker(self._do_restart_visualizer(), exclusive=False)
 
+    def _make_visualizer(self) -> BaseVisualizer:
+        """Build a visualizer from the current configuration."""
+        return create_visualizer(
+            bars=self._config.visualizer.bars,
+            framerate=self._config.visualizer.framerate,
+            sensitivity=self._config.visualizer.sensitivity,
+            backend=self._config.visualizer.backend,
+            cookies_browser=self._config.youtube.cookies_browser,
+        )
+
     async def _do_restart_visualizer(self) -> None:
-        """Actually restart the visualizer (runs in worker thread)."""
+        """Rebuild the visualizer after a settings change."""
         if self._visualizer:
             self._visualizer.stop()
             await asyncio.sleep(0.5)
 
-        logger.info(
-            "Restarting visualizer with bars=%d, sensitivity=%d",
-            self._config.visualizer.bars,
-            self._config.visualizer.sensitivity,
-        )
-
         loop = asyncio.get_running_loop()
-        self._visualizer = await loop.run_in_executor(
-            None,
-            lambda: create_visualizer(
-                bars=self._config.visualizer.bars,
-                framerate=self._config.visualizer.framerate,
-                sensitivity=self._config.visualizer.sensitivity,
-                backend=self._config.visualizer.backend,
-                cookies_browser=self._config.youtube.cookies_browser,
-            ),
-        )
+        self._visualizer = await loop.run_in_executor(None, self._make_visualizer)
         self._visualizer.start()
+        self._spectrum.num_bars = self._config.visualizer.bars
 
-        spectrum = self.query_one("#spectrum", SpectrumWidget)
-        spectrum._num_bars = self._config.visualizer.bars
-
-        # Re-trigger analysis for the current track (new bars count = new cache key)
-        if (
-            self._visualizer
-            and 0 <= self._current_index < len(self._playlist_tracks)
-            and self._player
-            and self._player.state.name != "STOPPED"
-        ):
-            track = self._playlist_tracks[self._current_index]
+        # A different bar count is a different cache key, so the current track
+        # has to be analysed again
+        track = self._session.current_track
+        if track and self._player and self._player.state != PlaybackState.STOPPED:
             self._visualizer.set_position(self._player.position)
             self._visualizer.analyze_track(track.watch_url, track.video_id)
 

@@ -19,7 +19,10 @@ import threading
 import time
 from abc import ABC, abstractmethod
 from pathlib import Path
-from typing import Any
+from typing import IO, TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from collections.abc import Iterator
 
 logger = logging.getLogger(__name__)
 
@@ -270,16 +273,8 @@ class AnalyzedVisualizer(BaseVisualizer):
             )
         return self._band_edges
 
-    def _analyze(self, url: str, video_id: str, cache_path: Path) -> None:
-        """Full analysis pipeline: yt-dlp | ffmpeg → FFT → normalize → cache.
-
-        Pipes yt-dlp stdout directly into ffmpeg stdin so yt-dlp handles all
-        YouTube-specific streaming (auth, DASH segments, etc.) transparently.
-        """
-        import numpy as np
-
-        logger.info("Starting audio analysis for %s", video_id)
-
+    def _decode_command(self, url: str) -> tuple[list[str], list[str]]:
+        """The yt-dlp and ffmpeg argv pair for streaming `url` as raw PCM."""
         ydl_cmd = [
             "yt-dlp",
             "-f", "bestaudio/best",
@@ -296,7 +291,16 @@ class AnalyzedVisualizer(BaseVisualizer):
             "-f", "f32le", "-ac", "1", "-ar", str(self.SAMPLE_RATE),
             "pipe:1",
         ]
+        return ydl_cmd, ffmpeg_cmd
 
+    @contextlib.contextmanager
+    def _pcm_stream(self, url: str, video_id: str) -> Iterator[IO[bytes] | None]:
+        """Yield a stream of mono float32 PCM, or None if it cannot be started.
+
+        yt-dlp's stdout feeds straight into ffmpeg's stdin, so yt-dlp keeps
+        ownership of everything YouTube-specific (auth, DASH segments).
+        """
+        ydl_cmd, ffmpeg_cmd = self._decode_command(url)
         ydl_proc: subprocess.Popen[bytes] | None = None
         ffmpeg_proc: subprocess.Popen[bytes] | None = None
 
@@ -310,61 +314,76 @@ class AnalyzedVisualizer(BaseVisualizer):
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
             )
-            # Hand off ydl stdout ownership to ffmpeg; we read from ffmpeg only
+            # Hand stdout ownership to ffmpeg; we only read from ffmpeg
             ydl_proc.stdout.close()  # type: ignore[union-attr]
         except Exception:
             logger.exception("Failed to start yt-dlp/ffmpeg pipeline for %s", video_id)
+            yield None
             return
 
-        hop = self._hop
-        window = np.hanning(self.FFT_SIZE)
-        band_edges = self._get_band_edges()
-
-        buffer = np.empty(0, dtype=np.float32)
-        raw_frames: list[list[float]] = []
-        bytes_per_hop = hop * 4  # float32 = 4 bytes each
-
         try:
-            while self._current_video_id == video_id and self._running:
-                raw = ffmpeg_proc.stdout.read(bytes_per_hop)  # type: ignore[union-attr]
-                if not raw:
-                    break
-
-                samples = np.frombuffer(raw, dtype=np.float32)
-                buffer = np.concatenate([buffer, samples])
-
-                while len(buffer) >= self.FFT_SIZE and self._current_video_id == video_id:
-                    frame_data = buffer[: self.FFT_SIZE] * window
-                    buffer = buffer[hop:]
-
-                    spectrum = np.abs(np.fft.rfft(frame_data)) / (self.FFT_SIZE / 2.0)
-                    bands = _spectrum_to_bands(spectrum, band_edges, self._bars)
-                    raw_frames.append(bands)
-
-                    # Progressively expose frames (every ~1 s worth of audio).
-                    # These carry raw magnitudes, so they need the same dB
-                    # mapping as the final result or the bars stay flat.
-                    if len(raw_frames) % self._fps == 0:
-                        partial = self._normalize(
-                            np.array(raw_frames, dtype=np.float32)
-                        ).tolist()
-                        with self._lock:
-                            self._frames = partial
-
+            yield ffmpeg_proc.stdout
         finally:
             for proc in (ffmpeg_proc, ydl_proc):
-                if proc is None:
-                    continue
                 with contextlib.suppress(Exception):
                     proc.terminate()
                 with contextlib.suppress(Exception):
                     proc.wait(timeout=3)
 
-            # Log any ffmpeg errors to help diagnose failures
-            if ffmpeg_proc and ffmpeg_proc.stderr:
-                stderr_out = ffmpeg_proc.stderr.read().decode("utf-8", errors="replace").strip()
+            if ffmpeg_proc.stderr:
+                stderr_out = (
+                    ffmpeg_proc.stderr.read().decode("utf-8", errors="replace").strip()
+                )
                 if stderr_out:
                     logger.warning("ffmpeg stderr for %s: %s", video_id, stderr_out)
+
+    def _bands_from_stream(self, stream: IO[bytes], video_id: str) -> list[list[float]]:
+        """Run the windowed FFT over the stream, publishing frames as they land."""
+        import numpy as np
+
+        window = np.hanning(self.FFT_SIZE)
+        band_edges = self._get_band_edges()
+        buffer = np.empty(0, dtype=np.float32)
+        raw_frames: list[list[float]] = []
+        bytes_per_hop = self._hop * 4  # float32
+
+        while self._current_video_id == video_id and self._running:
+            raw = stream.read(bytes_per_hop)
+            if not raw:
+                break
+
+            buffer = np.concatenate([buffer, np.frombuffer(raw, dtype=np.float32)])
+
+            while len(buffer) >= self.FFT_SIZE and self._current_video_id == video_id:
+                frame_data = buffer[: self.FFT_SIZE] * window
+                buffer = buffer[self._hop:]
+
+                spectrum = np.abs(np.fft.rfft(frame_data)) / (self.FFT_SIZE / 2.0)
+                raw_frames.append(_spectrum_to_bands(spectrum, band_edges, self._bars))
+
+                # Publish roughly every second of audio so the bars start
+                # moving before the whole track has been analysed. These are
+                # raw magnitudes, so they need the same dB mapping as the
+                # final result or they render flat.
+                if len(raw_frames) % self._fps == 0:
+                    partial = self._normalize(
+                        np.array(raw_frames, dtype=np.float32)
+                    ).tolist()
+                    with self._lock:
+                        self._frames = partial
+
+        return raw_frames
+
+    def _analyze(self, url: str, video_id: str, cache_path: Path) -> None:
+        """Full analysis pipeline: yt-dlp | ffmpeg → FFT → normalize → cache."""
+        import numpy as np
+
+        logger.info("Starting audio analysis for %s", video_id)
+
+        with self._pcm_stream(url, video_id) as stream:
+            if stream is None:
+                return
+            raw_frames = self._bands_from_stream(stream, video_id)
 
         if not raw_frames:
             logger.warning("Analysis produced no frames for %s — pipeline likely failed", video_id)
@@ -374,19 +393,16 @@ class AnalyzedVisualizer(BaseVisualizer):
             return  # track changed mid-analysis; discard
 
         arr = self._normalize(np.array(raw_frames, dtype=np.float32))
-
         with self._lock:
             self._frames = arr.tolist()
 
         logger.info("Analysis complete for %s: %d frames", video_id, len(raw_frames))
 
-        # Cache as float16 to halve storage
         try:
+            # float16 halves the cache size; bar heights do not need more
             np.save(cache_path, arr.astype(np.float16))
-            logger.info("Saved viz cache: %s", cache_path.name)
         except Exception:
             logger.warning("Failed to save viz cache for %s", video_id)
-
 
     def _normalize(self, arr: Any) -> Any:
         """Map raw band magnitudes onto 0.0-1.0 bar heights.
