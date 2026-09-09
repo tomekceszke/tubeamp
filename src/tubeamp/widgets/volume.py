@@ -7,7 +7,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
 
-from tubeamp.widgets._color import hex_to_rgb, lerp_color
+from tubeamp.widgets._color import gradient_steps
 
 # Layout: "VOL: " (5 chars) + bar (dynamic) + " NNN%" (5 chars)
 _VOL_BAR_START = 5
@@ -48,8 +48,7 @@ class VolumeWidget(Static):
         self._bar_color_top = bar_color_top or bar_color
         self.update_bar()
 
-    def watch_volume(self, new_volume: int) -> None:
-        """Update display when volume changes."""
+    def watch_volume(self, _: int) -> None:
         self.update_bar()
 
     def _get_bar_width(self) -> int:
@@ -80,15 +79,12 @@ class VolumeWidget(Static):
         constrained_volume = max(0, min(100, self.volume))
         filled = int(constrained_volume / 100 * bar_width)
 
-        # Build gradient-filled bar: each filled char gets its own interpolated color
-        rgb_left = hex_to_rgb(self._bar_color)
-        rgb_right = hex_to_rgb(self._bar_color_top)
-        filled_parts: list[str] = []
-        for i in range(filled):
-            t = i / max(bar_width - 1, 1)
-            color = lerp_color(rgb_left, rgb_right, t)
-            filled_parts.append(f"[{color}]█[/]")
-        filled_bar = "".join(filled_parts)
+        filled_bar = "".join(
+            f"[{color}]█[/]"
+            for color in gradient_steps(
+                self._bar_color, self._bar_color_top, filled, bar_width
+            )
+        )
         empty_bar = "░" * (bar_width - filled)
 
         self.update(f"[dim]VOL:[/] {filled_bar}{empty_bar} [bold]{constrained_volume:3d}%[/]")

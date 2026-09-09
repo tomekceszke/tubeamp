@@ -10,7 +10,7 @@ from textual.reactive import reactive
 from textual.widget import Widget
 
 from tubeamp.utils import format_time, marquee, scroll_offset
-from tubeamp.widgets._color import hex_to_rgb, lerp_color
+from tubeamp.widgets._color import gradient_steps
 
 
 class TrackInfoWidget(Widget):
@@ -155,14 +155,10 @@ class TrackInfoWidget(Widget):
             # No track loaded - show empty bar
             filled = 0
 
-        # Progress bar - filled portion with horizontal gradient
-        if filled > 0:
-            rgb_left = hex_to_rgb(self._primary_dim)
-            rgb_right = hex_to_rgb(self._primary)
-            for i in range(filled):
-                t = i / max(bar_width - 1, 1)
-                color = lerp_color(rgb_left, rgb_right, t)
-                result.append("█", style=color)
+        for color in gradient_steps(
+            self._primary_dim, self._primary, filled, bar_width
+        ):
+            result.append("█", style=color)
         result.append("░" * (bar_width - filled))
 
         return result

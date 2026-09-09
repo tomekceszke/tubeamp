@@ -4,13 +4,12 @@ from __future__ import annotations
 
 from textual.app import ComposeResult
 from textual.containers import Vertical
-from textual.screen import ModalScreen
 from textual.widgets import Input, Label, Static
 
-from tubeamp.themes import Theme
+from tubeamp.widgets._modal import ThemedModal
 
 
-class SearchScreen(ModalScreen[str | None]):
+class SearchScreen(ThemedModal):
     """Modal screen for entering a YouTube search query.
 
     Returns the search query string, or None if cancelled.
@@ -51,14 +50,6 @@ class SearchScreen(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS = [
-        ("escape", "cancel", "Cancel"),
-    ]
-
-    def __init__(self, theme: Theme, **kwargs: object) -> None:
-        super().__init__(**kwargs)
-        self._theme = theme
-
     def compose(self) -> ComposeResult:
         with Vertical(id="search-dialog"):
             yield Label("🔍 Search YouTube", id="search-title")
@@ -69,24 +60,13 @@ class SearchScreen(ModalScreen[str | None]):
             yield Static("Enter to search · Esc to cancel", id="search-hint")
 
     def on_mount(self) -> None:
-        dialog = self.query_one("#search-dialog")
-        dialog.styles.border = ("solid", self._theme.primary)
-        dialog.refresh()
-
-        title = self.query_one("#search-title", Label)
-        title.styles.color = self._theme.primary
-        title.refresh()
-
-        search_input = self.query_one("#search-input", Input)
-        search_input.styles.color = self._theme.primary
-        search_input.styles.border = ("solid", self._theme.primary_dim)
-        search_input.refresh()
-
-        hint = self.query_one("#search-hint", Static)
-        hint.styles.color = self._theme.primary_dim
-        hint.refresh()
-
-        search_input.focus()
+        theme = self._theme
+        self.paint("#search-dialog", border=theme.primary)
+        self.paint("#search-title", color=theme.primary)
+        self.paint("#search-hint", color=theme.primary_dim)
+        self.paint(
+            "#search-input", color=theme.primary, border=theme.primary_dim
+        ).focus()
 
     def on_input_submitted(self, event: Input.Submitted) -> None:
         query = event.value.strip()
@@ -94,6 +74,3 @@ class SearchScreen(ModalScreen[str | None]):
             self.dismiss(query)
         else:
             self.dismiss(None)
-
-    def action_cancel(self) -> None:
-        self.dismiss(None)

@@ -5,14 +5,14 @@ from __future__ import annotations
 from rich.text import Text
 from textual.app import ComposeResult
 from textual.containers import Vertical
-from textual.screen import ModalScreen
 from textual.widgets import Label, OptionList
 from textual.widgets.option_list import Option
 
 from tubeamp.themes import Theme, get_theme
+from tubeamp.widgets._modal import ThemedModal
 
 
-class ThemePickerScreen(ModalScreen[str | None]):
+class ThemePickerScreen(ThemedModal):
     """Modal screen for selecting a color theme.
 
     Returns the selected theme name, or None if cancelled.
@@ -52,14 +52,8 @@ class ThemePickerScreen(ModalScreen[str | None]):
     }
     """
 
-    BINDINGS = [
-        ("escape", "cancel", "Cancel"),
-    ]
-
     def __init__(self, current_theme: Theme, theme_names: list[str], **kwargs: object) -> None:
-        super().__init__(**kwargs)
-        self._current_theme_obj = current_theme
-        self._current_theme = current_theme.name
+        super().__init__(current_theme, **kwargs)
         self._theme_names = theme_names
 
     def compose(self) -> ComposeResult:
@@ -76,33 +70,18 @@ class ThemePickerScreen(ModalScreen[str | None]):
             yield Label("Enter to select · Esc to cancel", id="theme-hint")
 
     def on_mount(self) -> None:
-        dialog = self.query_one("#theme-dialog")
-        dialog.styles.border = ("solid", self._current_theme_obj.primary)
-        dialog.refresh()
-
-        title = self.query_one("#theme-title", Label)
-        title.styles.color = self._current_theme_obj.primary
-        title.refresh()
-
-        theme_list = self.query_one("#theme-list", OptionList)
-        theme_list.styles.border = ("solid", self._current_theme_obj.primary_dim)
-        theme_list.refresh()
+        theme = self._theme
+        self.paint("#theme-dialog", border=theme.primary)
+        self.paint("#theme-title", color=theme.primary)
+        self.paint("#theme-hint", color=theme.primary_dim)
+        theme_list = self.paint("#theme-list", border=theme.primary_dim)
         theme_list.focus()
 
-        hint = self.query_one("#theme-hint", Label)
-        hint.styles.color = self._current_theme_obj.primary_dim
-        hint.refresh()
-
-        # Highlight current theme
         for idx, name in enumerate(self._theme_names):
-            if name.lower() == self._current_theme.lower():
-                theme_list.highlighted = idx
+            if name.lower() == theme.name.lower():
+                theme_list.highlighted = idx  # type: ignore[attr-defined]
                 break
 
     def on_option_list_option_selected(self, event: OptionList.OptionSelected) -> None:
-        """Handle theme selection."""
         if event.option.id:
             self.dismiss(str(event.option.id))
-
-    def action_cancel(self) -> None:
-        self.dismiss(None)

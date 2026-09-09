@@ -47,64 +47,47 @@ class YouTubeService:
             logger.exception("yt-dlp extraction failed for: %s", url)
             return None
 
-    def _make_opts(self, **overrides: Any) -> dict[str, Any]:
-        """Build yt-dlp options, gracefully handling cookies."""
+    def _make_opts(self, cookies: bool = True, **overrides: Any) -> dict[str, Any]:
+        """Build yt-dlp options. Pass cookies=False to skip the browser profile."""
         opts: dict[str, Any] = {
             "quiet": True,
             "no_warnings": True,
             "extract_flat": False,
             **overrides,
         }
-
-        # Only add cookies if configured — don't let it break everything
-        if self._cookies_browser:
-            try:
-                opts["cookiesfrombrowser"] = (self._cookies_browser,)
-            except Exception:
-                logger.warning("Could not set cookies from browser: %s", self._cookies_browser)
-
+        if cookies and self._cookies_browser:
+            opts["cookiesfrombrowser"] = (self._cookies_browser,)
         return opts
 
     def search(self, query: str, max_results: int = 20) -> list[YouTubeTrack]:
-        """Search YouTube and return a list of tracks."""
+        """Search YouTube and return a list of tracks.
+
+        Retries without browser cookies if the first attempt fails, which is
+        the usual outcome when the configured browser profile is locked.
+        """
         search_url = f"ytsearch{max_results}:{query}"
         logger.info("Searching YouTube: %s (max=%d)", query, max_results)
 
-        # For search, use extract_flat to get results fast,
-        # but we need 'in_playlist' to get durations
-        opts = self._make_opts(extract_flat="in_playlist")
+        # extract_flat="in_playlist" keeps this fast while still yielding durations
+        for opts in (
+            self._make_opts(extract_flat="in_playlist"),
+            self._make_opts(extract_flat="in_playlist", cookies=False),
+        ):
+            result = self._extract(opts, search_url)
+            if result is not None:
+                break
+            logger.info("Retrying search without cookies")
+        else:
+            return []
 
-        result = self._extract(opts, search_url)
-        if result is None:
-            return self._search_no_cookies(query, max_results)
-
-        if not result.get("entries"):
+        entries = result.get("entries") or []
+        if not entries:
             logger.warning("Search returned no results for: %s", query)
             return []
 
-        tracks = [self._entry_to_track(e) for e in result["entries"] if e]
+        tracks = [self._entry_to_track(e) for e in entries if e]
         logger.info("Search returned %d tracks for: %s", len(tracks), query)
         return tracks
-
-    def _search_no_cookies(self, query: str, max_results: int) -> list[YouTubeTrack]:
-        """Fallback search without browser cookies."""
-        search_url = f"ytsearch{max_results}:{query}"
-        logger.info("Retrying search without cookies")
-
-        opts: dict[str, Any] = {
-            "quiet": True,
-            "no_warnings": True,
-            "extract_flat": "in_playlist",
-        }
-
-        result = self._extract(opts, search_url)
-        if not result or "entries" not in result:
-            return []
-
-        tracks = [self._entry_to_track(e) for e in result["entries"] if e]
-        logger.info("Search (no cookies) returned %d tracks", len(tracks))
-        return tracks
-
 
 
     def get_playlist(self, playlist_url: str, max_items: int | None = None) -> list[YouTubeTrack]:
