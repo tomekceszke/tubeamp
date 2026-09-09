@@ -33,7 +33,6 @@ class SpectrumWidget(Widget):
 
     DEFAULT_CSS = """
     SpectrumWidget {
-        height: 13;
         width: 1fr;
         padding: 0 1;
     }
@@ -52,10 +51,6 @@ class SpectrumWidget(Widget):
         self._num_bars = num_bars
         self._bar_color = bar_color
         self._bar_color_top = bar_color_top
-
-    def set_color(self, color: str) -> None:
-        """Set a solid color for the spectrum bars."""
-        self.set_gradient(color, color)
 
     def set_gradient(self, color_bottom: str, color_top: str) -> None:
         """Set a vertical gradient from color_bottom (base) to color_top (peaks)."""

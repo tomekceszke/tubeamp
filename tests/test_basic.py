@@ -25,7 +25,6 @@ def test_youtube_track_duration() -> None:
         title="Test",
         channel="Artist",
         duration=429,
-        url="https://youtube.com/watch?v=abc123",
     )
     assert track.display_duration == "7:09"
     assert track.watch_url == "https://www.youtube.com/watch?v=abc123"
@@ -33,7 +32,7 @@ def test_youtube_track_duration() -> None:
 
 def test_youtube_track_long_duration() -> None:
     track = YouTubeTrack(
-        video_id="x", title="Long", channel="A", duration=7384, url=""
+        video_id="x", title="Long", channel="A", duration=7384
     )
     assert track.display_duration == "2:03:04"
 

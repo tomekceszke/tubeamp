@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import logging
-import threading
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -29,7 +28,6 @@ class TrackInfo:
     artist: str = "Unknown"
     duration: float = 0.0
     url: str = ""
-    thumbnail_url: str = ""
 
 
 class Player:
@@ -43,14 +41,12 @@ class Player:
         self,
         volume: int = 80,
         quality: str = "bestaudio",
-        audio_device: str | None = None,
     ) -> None:
         self._state = PlaybackState.STOPPED
         self._current_track: TrackInfo | None = None
         self._position: float = 0.0
         self._listeners: dict[str, list[Callable[..., Any]]] = {}
 
-        # Build mpv options
         mpv_kwargs: dict[str, Any] = {
             "video": False,
             "vo": "null",  # Null video output - no window at all
@@ -62,16 +58,9 @@ class Player:
             "input_vo_keyboard": False,
         }
 
-        # If a specific audio device is requested (see [audio] device in config)
-        if audio_device:
-            mpv_kwargs["audio_device"] = audio_device
-            logger.info("mpv audio device: %s", audio_device)
-
-        # Initialize mpv instance
         self._mpv = mpv.MPV(**mpv_kwargs)
         self._mpv.volume = volume
 
-        # Register mpv property observers for reactive updates
         self._mpv.observe_property("time-pos", self._on_time_pos)
         self._mpv.observe_property("pause", self._on_pause_change)
         self._mpv.observe_property("media-title", self._on_title_change)
@@ -84,10 +73,6 @@ class Player:
         return self._state
 
     @property
-    def current_track(self) -> TrackInfo | None:
-        return self._current_track
-
-    @property
     def position(self) -> float:
         return self._position
 
@@ -98,7 +83,6 @@ class Player:
     @volume.setter
     def volume(self, value: int) -> None:
         self._mpv.volume = max(0, min(100, value))
-        self._emit("volume_changed", self._mpv.volume)
 
     def play(self, url: str, track_info: TrackInfo | None = None) -> None:
         """Play a YouTube URL or any URL mpv can handle."""
@@ -168,29 +152,3 @@ class Player:
         if value is True and self._state != PlaybackState.STOPPED:
             self._state = PlaybackState.STOPPED
             self._emit("track_ended")
-
-    # ── Lifecycle ───────────────────────────────────────────────
-
-    def shutdown(self) -> None:
-        """Clean shutdown of mpv player."""
-        logger.info("Shutting down mpv")
-        try:
-            self._mpv.unobserve_property("time-pos", self._on_time_pos)
-            self._mpv.unobserve_property("pause", self._on_pause_change)
-            self._mpv.unobserve_property("media-title", self._on_title_change)
-            self._mpv.unobserve_property("idle-active", self._on_idle)
-
-            if self._state != PlaybackState.STOPPED:
-                self._mpv.command("stop")
-
-            terminate_thread = threading.Thread(target=self._mpv.terminate)
-            terminate_thread.daemon = True
-            terminate_thread.start()
-            terminate_thread.join(timeout=2.0)
-
-            if terminate_thread.is_alive():
-                logger.warning("mpv terminate timed out, forcing exit")
-        except Exception:
-            logger.exception("Error shutting down mpv")
-
-

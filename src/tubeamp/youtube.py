@@ -21,8 +21,6 @@ class YouTubeTrack:
     title: str
     channel: str
     duration: int  # seconds
-    url: str
-    thumbnail_url: str = ""
 
     @property
     def display_duration(self) -> str:
@@ -147,6 +145,4 @@ class YouTubeService:
             title=entry.get("title", "Unknown"),
             channel=entry.get("channel", entry.get("uploader", "Unknown")),
             duration=int(entry.get("duration") or 0),
-            url=entry.get("url", entry.get("webpage_url", "")),
-            thumbnail_url=entry.get("thumbnail", ""),
         )

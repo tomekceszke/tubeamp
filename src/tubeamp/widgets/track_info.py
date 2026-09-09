@@ -23,7 +23,6 @@ class TrackInfoWidget(Widget):
 
     DEFAULT_CSS = """
     TrackInfoWidget {
-        height: 7;
         width: 1fr;
         padding: 0 1;
     }

@@ -741,14 +741,6 @@ class TubeAmpApp(App[None]):
         """Decrease number of visualizer bars."""
         self._adjust_visualizer_setting("bars", -10, 10, 200)
 
-    def action_increase_sensitivity(self) -> None:
-        """Increase visualizer sensitivity."""
-        self._adjust_visualizer_setting("sensitivity", 10, 10, 200)
-
-    def action_decrease_sensitivity(self) -> None:
-        """Decrease visualizer sensitivity."""
-        self._adjust_visualizer_setting("sensitivity", -10, 10, 200)
-
     def _restart_visualizer(self) -> None:
         """Restart visualizer with new settings."""
         self.run_worker(self._do_restart_visualizer(), exclusive=False)

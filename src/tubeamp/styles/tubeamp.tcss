@@ -29,10 +29,6 @@ SpectrumWidget {
     background: #0a0a0a;
 }
 
-#spectrum-display {
-    /* Color set by theme */
-}
-
 /* ── Vertical Divider ──────────────────────────── */
 
 #panel-divider {
@@ -78,14 +74,6 @@ TrackInfoWidget {
     padding: 0 1;
 }
 
-#track-title {
-    text-style: bold;
-}
-
-#track-seek {
-    /* Color set by theme */
-}
-
 /* ── Controls ───────────────────────────────────── */
 
 ControlsWidget {
@@ -99,27 +87,4 @@ ControlsWidget {
 PlaylistWidget {
     height: 1fr;
     padding: 0 1;
-}
-
-.playlist-item--selected {
-    /* Styling set by theme */
-}
-
-.playlist-item--playing {
-    /* Styling set by theme */
-}
-
-/* ── Header / Footer ────────────────────────────── */
-
-Header {
-    background: #1a1a1a;
-    text-style: bold;
-    border: solid;
-    height: 1;
-}
-
-Footer {
-    background: #1a1a1a;
-    border: solid;
-    height: 1;
 }

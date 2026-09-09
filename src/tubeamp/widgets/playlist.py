@@ -72,19 +72,6 @@ class PlaylistWidget(Widget):
         height: 2;
         background: transparent;
     }
-
-    .playlist-item {
-        height: 1;
-    }
-
-    .playlist-item--selected {
-        background: $primary-darken-1;
-    }
-
-    .playlist-item--playing {
-        color: $success;
-        text-style: bold;
-    }
     """
 
     selected_index: reactive[int] = reactive(0)
@@ -137,14 +124,6 @@ class PlaylistWidget(Widget):
             yield Static("No playlist loaded. Press / to search.", id="playlist-content")
         yield Static("", id="playlist-spacer")
 
-    @property
-    def entries(self) -> list[PlaylistEntry]:
-        return list(self._entries)
-
-    @property
-    def count(self) -> int:
-        return len(self._entries)
-
     def set_entries(self, entries: list[PlaylistEntry], reset: bool = False) -> None:
         """Replace the entire playlist.
 
@@ -168,13 +147,6 @@ class PlaylistWidget(Widget):
     def append_entry(self, entry: PlaylistEntry) -> None:
         """Add a track to the end of the playlist."""
         self._entries.append(entry)
-        self._refresh_display()
-
-    def clear(self) -> None:
-        """Clear the playlist."""
-        self._entries.clear()
-        self.selected_index = 0
-        self.playing_index = -1
         self._refresh_display()
 
     def set_loading(self, loading: bool) -> None:
