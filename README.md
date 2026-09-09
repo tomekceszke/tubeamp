@@ -21,7 +21,7 @@ A retro-styled terminal music player that streams audio from YouTube. Think Wina
 ## Quick Start
 
 ```bash
-git clone <your-repo-url> tubeamp
+git clone https://github.com/tomekceszke/tubeamp.git
 cd tubeamp
 ./install.sh
 ./run.sh
@@ -107,6 +107,7 @@ Once running, press `/` to search YouTube or paste a playlist URL.
 | `Enter`       | Play selected track   |
 | `Left` / `Right` | Seek -/+ 10s      |
 | `-` / `+`     | Volume down / up      |
+| `,` / `.`     | Previous / next track |
 | `s`           | Toggle shuffle        |
 | `r`           | Cycle repeat mode     |
 | `t`           | Theme picker          |
@@ -128,9 +129,10 @@ volume = 80
 quality = "bestaudio"
 
 [visualizer]
-bars = 40
+backend = "analyzed"        # "analyzed" (FFT) or "simulated"
+bars = 16
 framerate = 30
-sensitivity = 100
+sensitivity = 100           # percent gain on bar height
 
 [youtube]
 cookies_browser = ""        # "firefox", "chrome", etc.
@@ -142,6 +144,9 @@ theme = "classic"
 
 Local overrides in `local.toml` (not committed, see `local.toml.example`).
 
+Logging goes to `~/.config/tubeamp/tubeamp.log` at INFO level; set
+`TUBEAMP_LOG_LEVEL=DEBUG` for per-frame detail.
+
 ## Architecture
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
@@ -152,15 +157,16 @@ See [ARCHITECTURE.md](ARCHITECTURE.md) for detailed design documentation.
 # Install with dev dependencies
 pip install -e ".[dev]"
 
-# Run linting
-ruff check src/
+# Install the pre-commit hooks
+pre-commit install
 
-# Run type checking
-mypy src/
-
-# Run tests
+# Lint, type-check, test
+ruff check src/ tests/
+mypy src/ tests/
 pytest
 ```
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
 ## License
 

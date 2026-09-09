@@ -129,6 +129,20 @@ The Textual `App` subclass that:
 - Coordinates between services (player, youtube, visualizer)
 - Handles application lifecycle
 
+Widget lookups go through cached properties (`self._playlist`, `self._controls`,
+…). `compose()` builds the tree once and never changes it, so re-walking it on
+every keypress and every position tick is wasted work.
+
+Two concerns that would otherwise bloat the class live beside it:
+
+- **`playlist_session.py`** — `PlaylistSession` holds what is loaded and where
+  the next page comes from. A session is backed by a playlist URL *or* a search
+  query, never both, so the three entry points (`start_playlist`,
+  `start_search`, `start_single_track`) replace the mirrored field-by-field
+  state resets that each branch of the search used to repeat.
+- **`theming.py`** — `apply_theme()` walks a table of painters, one row per
+  themed widget, skipping any that are not mounted yet.
+
 ## Data Flow
 
 ```
@@ -151,9 +165,10 @@ volume = 80
 quality = "bestaudio"
 
 [visualizer]
-bars = 40
+backend = "analyzed"  # "analyzed" (offline FFT) or "simulated"
+bars = 16
 framerate = 30
-sensitivity = 100
+sensitivity = 100     # percent gain on bar height
 
 [youtube]
 cookies_browser = "firefox"  # or chrome, brave, etc.

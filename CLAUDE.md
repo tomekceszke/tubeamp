@@ -41,9 +41,13 @@ pytest --asyncio-mode=auto
 ## System Dependencies
 
 The application requires external system tools:
-- **mpv** - Audio playback engine (required)
-- **yt-dlp** - YouTube URL resolution (required)
+- **libmpv** - Audio playback engine, loaded through ctypes (required)
 - **ffmpeg** - Audio decoding for the spectrum visualizer (required)
+
+`yt-dlp` is a Python dependency installed into the virtualenv, not a system tool.
+`__main__.main()` prepends the interpreter's `bin` directory to `PATH` so the
+visualizer subprocess and mpv's `ytdl_hook` both find that copy rather than an
+older distribution package.
 
 ## Architecture
 
@@ -68,8 +72,10 @@ The codebase follows a three-layer architecture:
 3. **Service Layer**
    - `player.py` - mpv wrapper with event system
    - `youtube.py` - yt-dlp wrapper for search and metadata
-   - `visualizer.py` - Audio spectrum capture and processing
+   - `visualizer.py` - Offline FFT analysis, replayed in sync with playback
    - `config.py` - TOML configuration management
+   - `playlist_session.py` - What is loaded and where the next page comes from
+   - `theming.py` - Applies a theme across the mounted widget tree
 
 ### Key Integration Points
 
