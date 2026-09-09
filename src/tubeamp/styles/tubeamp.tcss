@@ -1,0 +1,125 @@
+/* TubeAmp — Themeable retro UI */
+
+Screen {
+    background: #0a0a0a;
+    align: center middle;
+}
+
+/* ── Main Container ─────────────────────────────── */
+
+#player-container {
+    max-width: 100;
+    width: 100%;
+    border: heavy;
+    background: #0a0a0a;
+}
+
+/* ── Main Panel (Horizontal split: 60/40) ─────── */
+
+#main-panel {
+    height: 7;
+    width: 100%;
+}
+
+/* ── Spectrum Visualizer (Left 60%) ──────────────── */
+
+SpectrumWidget {
+    width: 1fr;
+    height: 7;
+    background: #0a0a0a;
+}
+
+#spectrum-display {
+    /* Color set by theme */
+}
+
+/* ── Vertical Divider ──────────────────────────── */
+
+#panel-divider {
+    width: 1;
+    height: 100%;
+    background: #0a0a0a;
+}
+
+/* ── Right Panel (Volume + Controls, 40%) ──────── */
+
+#right-panel {
+    width: 1fr;
+    height: 7;
+}
+
+/* ── Volume Bar Widget ──────────────────────────── */
+
+VolumeWidget {
+    height: 3;
+    background: #0a0a0a;
+    padding: 1 1;
+}
+
+/* ── Horizontal Separators ─────────────────────── */
+
+.section-separator {
+    height: 1;
+    width: 100%;
+    color: #333333;
+}
+
+.panel-separator {
+    height: 1;
+    width: 100%;
+    color: #222222;
+    padding: 0 1;
+}
+
+/* ── Track Info ─────────────────────────────────── */
+
+TrackInfoWidget {
+    height: 4;
+    padding: 0 1;
+}
+
+#track-title {
+    text-style: bold;
+}
+
+#track-seek {
+    /* Color set by theme */
+}
+
+/* ── Controls ───────────────────────────────────── */
+
+ControlsWidget {
+    height: 3;
+    padding: 0 1;
+    align: center middle;
+}
+
+/* ── Playlist ───────────────────────────────────── */
+
+PlaylistWidget {
+    height: 1fr;
+    padding: 0 1;
+}
+
+.playlist-item--selected {
+    /* Styling set by theme */
+}
+
+.playlist-item--playing {
+    /* Styling set by theme */
+}
+
+/* ── Header / Footer ────────────────────────────── */
+
+Header {
+    background: #1a1a1a;
+    text-style: bold;
+    border: solid;
+    height: 1;
+}
+
+Footer {
+    background: #1a1a1a;
+    border: solid;
+    height: 1;
+}

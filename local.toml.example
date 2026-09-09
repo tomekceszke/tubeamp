@@ -1,0 +1,11 @@
+# Example local TubeAmp configuration
+# Copy this file to local.toml and customize for your personal settings
+# local.toml is in .gitignore and won't be committed
+
+[youtube]
+# Default playlist or video to load on startup
+# Can be a YouTube playlist URL or a single video URL
+default_playlist = "https://www.youtube.com/watch?v=VIDEO_ID&list=PLAYLIST_ID"
+
+# Optionally override cookies browser (if different from global config)
+# cookies_browser = "chrome"
