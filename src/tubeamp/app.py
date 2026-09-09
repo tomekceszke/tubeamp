@@ -840,12 +840,8 @@ class TubeAmpApp(App[None]):
             self._config.save()
 
         if self._visualizer:
-            try:
-                self._visualizer._running = False
-                if hasattr(self._visualizer, '_process') and self._visualizer._process:
-                    self._visualizer._process.terminate()
-            except Exception:
-                pass
+            with contextlib.suppress(Exception):
+                self._visualizer.stop()
 
         if self._player:
             with contextlib.suppress(Exception):

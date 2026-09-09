@@ -16,7 +16,7 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
-from tubeamp.utils import scroll_text
+from tubeamp.utils import marquee, scroll_offset
 
 # Fixed-width columns: prefix(1) + selector(1) + num(3) + ". "(2) + " "(1) + dur(8) = 16
 FIXED_COLUMN_WIDTH = 16
@@ -237,19 +237,20 @@ class PlaylistWidget(Widget):
             self.selected_index = clicked_line
             self.confirm_selection()
 
+    def _info_width(self) -> int:
+        widget_width = self.size.width - 2 if self.size.width > 20 else 116
+        return widget_width - FIXED_COLUMN_WIDTH
+
     def _update_scroll(self) -> None:
-        """Update scroll offset for marquee effect and check near-bottom."""
+        """Advance the marquee on the selected entry."""
         if not self._entries or self.selected_index < 0:
             return
 
-        entry = self._entries[self.selected_index]
-        info = entry.title
-
-        widget_width = self.size.width - 2 if self.size.width > 20 else 116
-        available_for_info = widget_width - FIXED_COLUMN_WIDTH
-
-        self.text_scroll_offset = scroll_text(info, self.text_scroll_offset, available_for_info)
-
+        self.text_scroll_offset = scroll_offset(
+            self._entries[self.selected_index].title,
+            self.text_scroll_offset,
+            self._info_width(),
+        )
 
     def watch_text_scroll_offset(self, _: int) -> None:
         self._refresh_display()
@@ -323,23 +324,12 @@ class PlaylistWidget(Widget):
             # Duration right-aligned (8 chars: " HH:MM:SS" or "  MM:SS")
             dur = f"{entry.duration_str:>8}"
 
-            # Build title info
             info = entry.title
+            available_for_info = widget_width - FIXED_COLUMN_WIDTH
 
-            # Calculate available space for info
-            # Format: "{prefix}{selector}{num}. {info} {dur}"
-            # Fixed parts: prefix(1) + selector(1) + num(3) + ". "(2) + " "(1) + dur(8) = 16
-            fixed_width = 16
-            available_for_info = widget_width - fixed_width
-
-            # Apply scrolling only to selected item
-            if i == self.selected_index and len(info) > available_for_info:
-                # Marquee scrolling effect
-                extended = info + "  ·  " + info
-                start = self.text_scroll_offset
-                info = extended[start:start + available_for_info]
+            if i == self.selected_index:
+                info = marquee(info, self.text_scroll_offset, available_for_info)
             elif len(info) > available_for_info:
-                # Truncate non-selected items
                 info = info[:available_for_info - 3] + "..."
 
             # Build the line with proper spacing (as plain text)

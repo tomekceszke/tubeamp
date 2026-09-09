@@ -9,7 +9,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 
-from tubeamp.utils import format_time, scroll_text
+from tubeamp.utils import format_time, marquee, scroll_offset
 from tubeamp.widgets._color import hex_to_rgb, lerp_color
 
 
@@ -27,13 +27,6 @@ class TrackInfoWidget(Widget):
         padding: 0 1;
     }
 
-    #track-title {
-        text-style: bold;
-    }
-
-    #track-seek {
-        color: $text-muted;
-    }
     """
 
     class SeekRequested(Message):
@@ -72,15 +65,29 @@ class TrackInfoWidget(Widget):
         if self._scroll_timer:
             self._scroll_timer.stop()
 
+    def _time_string(self) -> str:
+        if self.duration <= 0:
+            return ""
+        return f"{format_time(self.position)} / {format_time(self.duration)}"
+
+    def _content_width(self) -> int:
+        return self.size.width - 2 if self.size.width > 4 else 80
+
+    def _title_width(self) -> int:
+        """Columns the title may occupy, once the time display is reserved.
+
+        Both the scroll timer and render() must agree on this. They used to
+        compute it differently — and scroll off a different string as well —
+        so the marquee jumped whenever a track had an artist set.
+        """
+        total = self._content_width()
+        time_str = self._time_string()
+        return max(20, total - (len(time_str) + 2)) if time_str else total
+
     def _update_scroll(self) -> None:
-        """Update scroll offset for marquee effect."""
-        title_line = f"{self.artist} — {self.title}" if self.artist else self.title
-
-        # Reserve space for time display (e.g., "12:34 / 56:78" = ~15 chars + spacing)
-        time_reserved = 17
-        max_width = max(20, (self.size.width - 2) - time_reserved) if self.size.width > 4 else 60
-
-        self.text_scroll_offset = scroll_text(title_line, self.text_scroll_offset, max_width)
+        self.text_scroll_offset = scroll_offset(
+            self.title, self.text_scroll_offset, self._title_width()
+        )
 
     def update_track(self, title: str, artist: str = "", duration: float = 0.0) -> None:
         """Update track metadata."""
@@ -125,35 +132,12 @@ class TrackInfoWidget(Widget):
         self.post_message(self.SeekRequested(target))
 
     def render(self) -> RenderableType:
-        """Render track info and seek bar."""
-        # Title line with scrolling (just title, no artist/channel)
-        title_line = self.title
+        """Render the title line, the time display and the seek bar."""
+        time_str = self._time_string()
+        total_width = self._content_width()
+        display_title = marquee(self.title, self.text_scroll_offset, self._title_width())
 
-        # Time string
-        if self.duration > 0:
-            time_str = f"{format_time(self.position)} / {format_time(self.duration)}"
-        else:
-            time_str = ""
-        time_reserved = len(time_str) + 2  # Time + spacing
-
-        # Calculate available width for title (reserve space for time on the right)
-        total_width = self.size.width - 2 if self.size.width > 4 else 80
-        title_max_width = max(20, total_width - time_reserved) if time_str else total_width
-
-        # Apply scrolling if text is longer than available width
-        if len(title_line) > title_max_width:
-            # Create marquee effect
-            extended = title_line + "  ·  " + title_line
-            start = self.text_scroll_offset
-            display_title = extended[start:start + title_max_width]
-        else:
-            display_title = title_line
-
-        # Build Text object piece by piece for better control
         result = Text()
-
-        # Title line with time on the right
-        # Calculate spacing to push time to the right
         spaces_needed = max(2, total_width - len(display_title) - len(time_str))
 
         result.append(display_title, style=f"bold {self._primary}")

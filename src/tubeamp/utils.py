@@ -14,8 +14,22 @@ def format_time(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
-def scroll_text(text: str, offset: int, width: int) -> int:
-    """Return next scroll offset for marquee effect. Returns 0 if text fits."""
-    if len(text) > width:
-        return (offset + 1) % (len(text) + 10)
-    return 0
+MARQUEE_SEPARATOR = "  ·  "
+
+
+def scroll_offset(text: str, offset: int, width: int) -> int:
+    """Return the next marquee offset for `text`, or 0 when it already fits.
+
+    The period must match the string `marquee()` slices, or the window runs
+    off the end of it and the text visibly stutters.
+    """
+    if len(text) <= width:
+        return 0
+    return (offset + 1) % (len(text) + len(MARQUEE_SEPARATOR))
+
+
+def marquee(text: str, offset: int, width: int) -> str:
+    """Return the visible window of `text` scrolled to `offset`."""
+    if len(text) <= width:
+        return text
+    return (text + MARQUEE_SEPARATOR + text)[offset:offset + width]
