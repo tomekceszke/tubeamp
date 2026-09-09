@@ -32,7 +32,6 @@ logger = logging.getLogger(__name__)
 
 CSS_PATH = Path(__file__).parent / "styles" / "tubeamp.tcss"
 
-# Constants
 SEEK_THROTTLE_INTERVAL = 0.1  # seconds between seeks
 LAZY_LOAD_THRESHOLD = 5  # tracks from end to trigger lazy load
 
@@ -156,7 +155,6 @@ class TubeAmpApp(App[None]):
 
     async def _init_services(self) -> None:
         """Initialize player, YouTube service, and visualizer."""
-        # Initialize player
         try:
             self._player = Player(
                 volume=self._config.audio.volume,
@@ -171,12 +169,10 @@ class TubeAmpApp(App[None]):
             logger.exception("Failed to initialize player")
             self.notify("mpv not available - install mpv first", severity="error")
 
-        # Initialize YouTube service
         self._youtube = YouTubeService(
             cookies_browser=self._config.youtube.cookies_browser,
         )
 
-        # Initialize visualizer
         self._visualizer = create_visualizer(
             bars=self._config.visualizer.bars,
             framerate=self._config.visualizer.framerate,
@@ -186,7 +182,6 @@ class TubeAmpApp(App[None]):
         )
         self._visualizer.start()
 
-        # Start visualizer refresh timer
         self.set_interval(
             1.0 / self._config.visualizer.framerate,
             self._refresh_visualizer,
@@ -195,13 +190,11 @@ class TubeAmpApp(App[None]):
         # Cache spectrum widget reference to avoid repeated tree walks
         self._spectrum_widget = self.query_one("#spectrum", SpectrumWidget)
 
-        # Update controls and volume widgets with initial state
         controls = self.query_one("#controls", ControlsWidget)
         controls.volume = self._config.audio.volume
         volume_widget = self.query_one("#volume-bar", VolumeWidget)
         volume_widget.volume = self._config.audio.volume
 
-        # Load default playlist if configured
         if self._config.youtube.default_playlist:
             logger.info("Loading default playlist: %s", self._config.youtube.default_playlist)
             playlist = self.query_one("#playlist", PlaylistWidget)
@@ -291,7 +284,6 @@ class TubeAmpApp(App[None]):
         if not self._youtube:
             return []
 
-        # Detect if query is a URL (playlist or video)
         if query.startswith(("http://", "https://", "www.")):
             if "playlist" in query or "list=" in query:
                 batch_size = self._calculate_playlist_batch_size()
@@ -336,13 +328,13 @@ class TubeAmpApp(App[None]):
             if visible_height == 0:
                 screen_height = self.size.height
                 estimated_playlist_height = max(10, screen_height - 17)
-                logger.info(
+                logger.debug(
                     "Playlist not sized yet, estimating height %d from screen %d",
                     estimated_playlist_height, screen_height,
                 )
                 return estimated_playlist_height
 
-            logger.info("Playlist viewport height: %d", visible_height)
+            logger.debug("Playlist viewport height: %d", visible_height)
             return visible_height
         except Exception:
             logger.warning("Could not calculate playlist batch size, using default 15")
@@ -369,7 +361,6 @@ class TubeAmpApp(App[None]):
 
         self._load_search_results(tracks)
         playlist.set_loading(False)
-        logger.info("Loaded %d tracks", len(tracks))
 
     # ── Playlist Management ─────────────────────────────────────
 
@@ -430,10 +421,7 @@ class TubeAmpApp(App[None]):
     def _make_playlist_entry(track: YouTubeTrack) -> PlaylistEntry:
         return PlaylistEntry(
             title=track.title,
-            channel=track.channel,
             duration_str=track.display_duration,
-            url=track.watch_url,
-            video_id=track.video_id,
         )
 
     def _load_search_results(self, tracks: list[YouTubeTrack]) -> None:
@@ -456,7 +444,6 @@ class TubeAmpApp(App[None]):
                 self._player.pause()
 
     def action_stop(self) -> None:
-        """Stop playback."""
         if self._player:
             self._player.stop()
 
@@ -516,7 +503,6 @@ class TubeAmpApp(App[None]):
         self._shuffle = not self._shuffle
         controls = self.query_one("#controls", ControlsWidget)
         controls.shuffle = self._shuffle
-        logger.info("Shuffle toggled: %s", self._shuffle)
 
     def action_toggle_repeat(self) -> None:
         modes = ["off", "all", "one"]
@@ -524,7 +510,6 @@ class TubeAmpApp(App[None]):
         self._repeat_mode = modes[(current_idx + 1) % len(modes)]
         controls = self.query_one("#controls", ControlsWidget)
         controls.repeat_mode = self._repeat_mode
-        logger.info("Repeat mode: %s", self._repeat_mode)
 
     def action_search(self) -> None:
         """Open search modal and query YouTube."""
@@ -553,13 +538,11 @@ class TubeAmpApp(App[None]):
             self._config.save()
             self._apply_theme()
             self.notify(f"Theme changed to {self._theme.name}", timeout=2)
-            logger.info("Theme changed to: %s", theme_name)
 
     def _apply_theme(self) -> None:
         """Apply the current theme to all widgets."""
         theme = self._theme
 
-        # Apply to each widget, skipping any that aren't mounted yet
         container = self._query_widget("#player-container", Widget)
         if container:
             container.styles.border = ("heavy", theme.primary)
@@ -639,7 +622,6 @@ class TubeAmpApp(App[None]):
         tracks_remaining = len(self._playlist_tracks) - playlist.selected_index
 
         if tracks_remaining <= LAZY_LOAD_THRESHOLD:
-            logger.info("Near end of playlist, loading more tracks...")
             self.run_worker(self._load_more_tracks(), exclusive=False)
 
     async def _load_more_tracks(self) -> None:
@@ -713,7 +695,6 @@ class TubeAmpApp(App[None]):
         path = f"tubeamp_screenshot_{timestamp}.svg"
         self.save_screenshot(path)
         self.notify(f"Screenshot saved: {path}", severity="information")
-        logger.info("Screenshot saved to %s", path)
 
     def action_help(self) -> None:
         self.notify(
@@ -729,9 +710,9 @@ class TubeAmpApp(App[None]):
         setattr(self._config.visualizer, attr, new_val)
         self._config.save()
         if old_val != new_val:
+            logger.info("Visualizer %s: %d", attr, new_val)
             self._restart_visualizer()
             self.notify(f"{attr.capitalize()}: {new_val}", timeout=1)
-        logger.info("Visualizer %s: %d", attr, new_val)
 
     def action_increase_bars(self) -> None:
         """Increase number of visualizer bars."""
@@ -784,7 +765,6 @@ class TubeAmpApp(App[None]):
             self._visualizer.set_position(self._player.position)
             self._visualizer.analyze_track(track.watch_url, track.video_id)
 
-        logger.info("Visualizer restarted successfully")
 
     # ── Playlist Widget Events ──────────────────────────────────
 
@@ -807,19 +787,15 @@ class TubeAmpApp(App[None]):
             logger.debug("Seek failed: %s", e)
 
     def on_controls_widget_stop_clicked(self) -> None:
-        """Handle stop button click."""
         self.action_stop()
 
     def on_controls_widget_play_pause_clicked(self) -> None:
-        """Handle play/pause button click."""
         self.action_toggle_play()
 
     def on_controls_widget_shuffle_clicked(self) -> None:
-        """Handle shuffle button click."""
         self.action_toggle_shuffle()
 
     def on_controls_widget_repeat_clicked(self) -> None:
-        """Handle repeat button click."""
         self.action_toggle_repeat()
 
     def on_volume_widget_volume_changed(

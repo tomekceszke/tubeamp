@@ -31,7 +31,6 @@ class Theme:
     repeat_one: str
 
 
-# Built-in themes
 THEMES: dict[str, Theme] = {
     "classic": Theme(
         name="Classic",

@@ -1,6 +1,6 @@
 """Basic smoke tests for TubeAmp modules."""
 
-from tubeamp import __version__, __app_name__
+from tubeamp import __app_name__, __version__
 from tubeamp.config import AppConfig, AudioConfig, VisualizerConfig
 from tubeamp.visualizer import SimulatedVisualizer
 from tubeamp.youtube import YouTubeTrack

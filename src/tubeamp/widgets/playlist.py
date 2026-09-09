@@ -2,14 +2,13 @@
 
 from __future__ import annotations
 
-import logging
+import contextlib
 from dataclasses import dataclass
 
 from rich.text import Text
-
-logger = logging.getLogger(__name__)
 from textual.app import ComposeResult
 from textual.containers import VerticalScroll
+from textual.css.query import NoMatches
 from textual.events import Click
 from textual.message import Message
 from textual.reactive import reactive
@@ -27,18 +26,15 @@ class PlaylistEntry:
     """A single entry in the playlist."""
 
     title: str
-    channel: str
     duration_str: str
-    url: str
-    video_id: str = ""
 
 
 class PlaylistWidget(Widget):
     """Scrollable playlist display with selection and now-playing indicator.
 
     Layout:
-        ▶ 1. Around the World — Daft Punk          7:09
-          2. Da Funk — Daft Punk                    5:28
+        ▶ 1. Around the World                      7:09
+          2. Da Funk                               5:28
           3. Revolution 909 — Daft Punk             5:26
           ...
     """
@@ -107,15 +103,13 @@ class PlaylistWidget(Widget):
         self._selection_fg = selection_fg
         self._playing_color = playing_color
 
-        # Update scrollbar colors - use very dim color for subtle appearance
-        try:
+        # The resting scrollbar stays near-invisible; it only picks up the
+        # theme colour under the pointer
+        with contextlib.suppress(NoMatches):
             scroll = self.query_one("#playlist-scroll")
-            # Use very dim color (20% opacity approximation) for thin line appearance
             scroll.styles.scrollbar_color = "#333333"
             scroll.styles.scrollbar_color_hover = playing_color
             scroll.styles.scrollbar_color_active = playing_color
-        except Exception:
-            pass
 
         self._refresh_display()
 
@@ -135,11 +129,10 @@ class PlaylistWidget(Widget):
         if reset:
             self.selected_index = 0
             self.playing_index = -1
-            try:
-                scroll = self.query_one("#playlist-scroll", VerticalScroll)
-                scroll.scroll_to(y=0, animate=False)
-            except Exception:
-                logger.debug("Could not scroll playlist to top")
+            with contextlib.suppress(NoMatches):
+                self.query_one("#playlist-scroll", VerticalScroll).scroll_to(
+                    y=0, animate=False
+                )
         elif self.selected_index >= len(self._entries):
             self.selected_index = max(0, len(self._entries) - 1)
         self._refresh_display()
@@ -228,10 +221,10 @@ class PlaylistWidget(Widget):
 
         try:
             scroll = self.query_one("#playlist-scroll", VerticalScroll)
-            clicked_line = event.y + int(scroll.scroll_y)
-        except Exception as e:
-            logger.debug("Could not get scroll position: %s", e)
+        except NoMatches:
             clicked_line = event.y
+        else:
+            clicked_line = event.y + int(scroll.scroll_y)
 
         if 0 <= clicked_line < len(self._entries):
             self.selected_index = clicked_line
@@ -268,27 +261,17 @@ class PlaylistWidget(Widget):
 
         try:
             scroll_container = self.query_one("#playlist-scroll", VerticalScroll)
-        except Exception as e:
-            logger.debug("Could not scroll to selected: %s", e)
+        except NoMatches:
             return
 
-        # Each line is 1 row tall in the terminal
+        # One entry per terminal row, so the row index is the entry index
         line_y = self.selected_index
-
-        # Get the visible height and current scroll position
         visible_height = scroll_container.size.height
-        current_scroll = scroll_container.scroll_y
+        visible_start = scroll_container.scroll_y
 
-        # Calculate the visible range
-        visible_start = current_scroll
-        visible_end = current_scroll + visible_height - 1
-
-        # Only scroll if the selected line is outside the visible range
         if line_y < visible_start:
-            # Selected line is above visible area - scroll up to show it at top
             scroll_container.scroll_to(y=line_y, animate=False)
-        elif line_y > visible_end:
-            # Selected line is below visible area - scroll down to show it at bottom
+        elif line_y > visible_start + visible_height - 1:
             scroll_container.scroll_to(y=line_y - visible_height + 1, animate=False)
 
     def _refresh_display(self) -> None:
@@ -305,23 +288,14 @@ class PlaylistWidget(Widget):
                 content.update("No playlist loaded. Press / to search.")
             return
 
-        # Calculate available width for playlist items
-        # Widget width minus padding (2 chars left/right) and scrollbar space (2 chars)
-        # Use actual width if available (> 20), otherwise use generous default
+        # Fall back to a generous default before the widget has been sized
         widget_width = self.size.width - 2 if self.size.width > 20 else 116
 
         lines: list[Text] = []
         for i, entry in enumerate(self._entries):
-            # Playing indicator
             prefix = "▶" if i == self.playing_index else " "
-
-            # Selection indicator
             selector = "›" if i == self.selected_index else " "
-
-            # Track number (padded)
             num = f"{i + 1:>3}"
-
-            # Duration right-aligned (8 chars: " HH:MM:SS" or "  MM:SS")
             dur = f"{entry.duration_str:>8}"
 
             info = entry.title
@@ -332,36 +306,20 @@ class PlaylistWidget(Widget):
             elif len(info) > available_for_info:
                 info = info[:available_for_info - 3] + "..."
 
-            # Build the line with proper spacing (as plain text)
-            # Left part: indicators + number + info
             left_part = f"{prefix}{selector}{num}. {info}"
-            # Right part: duration
-            # Calculate spaces needed to push duration to the right
-            spaces_needed = widget_width - len(left_part) - len(dur)
-            if spaces_needed < 1:
-                spaces_needed = 1
+            spaces_needed = max(1, widget_width - len(left_part) - len(dur))
 
-            line_content = f"{left_part}{' ' * spaces_needed}{dur}"
-
-            # Create Rich Text object and apply styling
-            text_obj = Text(line_content)
-
-            # Apply styling to the entire line
+            text_obj = Text(f"{left_part}{' ' * spaces_needed}{dur}")
             if i == self.selected_index:
-                # Selected item with theme colors
                 text_obj.stylize(f"bold {self._selection_fg} on {self._selection_bg}")
             elif i == self.playing_index:
-                # Currently playing track with theme color
                 text_obj.stylize(self._playing_color)
 
             lines.append(text_obj)
 
-        # Add loading indicator at the bottom if loading more tracks
         if self._is_loading:
             spinner = self._spinner_frames[self._spinner_index]
             loading_text = Text(f"\n{spinner} Loading more tracks...", style="dim italic")
             lines.append(loading_text)
 
-        # Join Text objects properly
-        combined = Text("\n").join(lines)
-        content.update(combined)
+        content.update(Text("\n").join(lines))

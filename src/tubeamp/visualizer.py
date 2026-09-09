@@ -63,7 +63,8 @@ class AnalyzedVisualizer(BaseVisualizer):
     During playback, get_bars() returns the frame matching the current position.
     Falls back to SimulatedVisualizer while analysis is in progress.
 
-    Cache location: ~/.config/tubeamp/viz_cache/{video_id}_{bars}bars.npy
+    Cache location: ~/.config/tubeamp/viz_cache/, keyed by video, bar count,
+    frame rate and analysis format — see _cache_name().
     """
 
     SAMPLE_RATE = 22050  # Hz — good enough for visualization, fast to process
@@ -105,8 +106,10 @@ class AnalyzedVisualizer(BaseVisualizer):
         self._cache_dir = cache_dir or (Path.home() / ".config" / "tubeamp" / "viz_cache")
         self._cache_dir.mkdir(parents=True, exist_ok=True)
 
-        # Analysis hops by whole samples, so the true frame rate is not exactly
-        # `fps`. Index by the real rate or long tracks drift out of sync.
+        # Analysis hops by whole samples, so the rate at which frames were
+        # produced is not exactly `fps`. Frame lookup must use the real rate
+        # (_frame_rate) or long tracks drift out of sync; the envelope below
+        # uses the nominal fps, because that is the render interval.
         self._hop = max(1, self.SAMPLE_RATE // fps)
         self._frame_rate = self.SAMPLE_RATE / self._hop
 

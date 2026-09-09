@@ -76,7 +76,6 @@ class ThemePickerScreen(ModalScreen[str | None]):
             yield Label("Enter to select · Esc to cancel", id="theme-hint")
 
     def on_mount(self) -> None:
-        # Apply current theme colors to dialog
         dialog = self.query_one("#theme-dialog")
         dialog.styles.border = ("solid", self._current_theme_obj.primary)
         dialog.refresh()

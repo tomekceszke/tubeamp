@@ -2,18 +2,14 @@
 
 from __future__ import annotations
 
-import logging
-
 from rich.text import Text
 from textual.app import ComposeResult
+from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
 from tubeamp.widgets._color import hex_to_rgb, lerp_color
-
-logger = logging.getLogger(__name__)
-
 
 # Unicode block characters for vertical bar rendering (⅛ increments)
 BAR_CHARS = " ▁▂▃▄▅▆▇█"
@@ -23,12 +19,9 @@ SPECTRUM_ROWS = 7
 class SpectrumWidget(Widget):
     """Real-time spectrum analyzer display.
 
-    Renders audio frequency bars using Unicode block characters.
-    The widget receives bar heights (0.0-1.0) from the visualizer
-    and renders them as vertical bars with configurable height and color.
-
-    The display uses two rows of block characters for higher vertical
-    resolution (16 levels per bar instead of 8).
+    Receives bar heights (0.0-1.0) from the visualizer and draws them as
+    vertical bars across SPECTRUM_ROWS text rows, each row contributing eight
+    sub-levels through the Unicode block characters.
     """
 
     DEFAULT_CSS = """
@@ -69,9 +62,9 @@ class SpectrumWidget(Widget):
         """React to bar data changes and re-render."""
         try:
             display = self.query_one("#spectrum-display", Static)
-            display.update(self._render_bars(bars, display.size.width))
-        except Exception:
-            logger.debug("spectrum-display not yet mounted")
+        except NoMatches:
+            return  # not mounted yet; the next frame lands once it is
+        display.update(self._render_bars(bars, display.size.width))
 
     def _render_bars(self, bars: list[float], available_width: int = 0) -> Text:
         """Convert bar heights to Unicode block character display.

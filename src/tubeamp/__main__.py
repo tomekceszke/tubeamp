@@ -13,10 +13,15 @@ LOG_FILE = LOG_DIR / "tubeamp.log"
 
 
 def setup_logging() -> None:
-    """Configure file-based logging (TUI apps can't log to stdout)."""
+    """Configure file-based logging (TUI apps can't log to stdout).
+
+    Defaults to INFO. Set TUBEAMP_LOG_LEVEL=DEBUG for the per-frame and
+    per-keypress detail, which is far too noisy to leave on by default.
+    """
     LOG_DIR.mkdir(parents=True, exist_ok=True)
+    level = os.environ.get("TUBEAMP_LOG_LEVEL", "INFO").upper()
     logging.basicConfig(
-        level=logging.DEBUG,
+        level=getattr(logging, level, logging.INFO),
         format="%(asctime)s %(levelname)-8s %(name)s: %(message)s",
         filename=str(LOG_FILE),
         filemode="w",  # overwrite each run

@@ -69,7 +69,6 @@ class SearchScreen(ModalScreen[str | None]):
             yield Static("Enter to search · Esc to cancel", id="search-hint")
 
     def on_mount(self) -> None:
-        # Apply theme colors
         dialog = self.query_one("#search-dialog")
         dialog.styles.border = ("solid", self._theme.primary)
         dialog.refresh()
