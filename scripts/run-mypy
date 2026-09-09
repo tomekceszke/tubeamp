@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Type-check the project with whichever mypy is available: the project
+# virtualenv if there is one, otherwise whatever is on PATH.
+set -euo pipefail
+
+cd "$(dirname "${BASH_SOURCE[0]}")/.."
+
+if [ -x .venv/bin/mypy ]; then
+    exec .venv/bin/mypy src/ tests/
+fi
+
+if command -v mypy >/dev/null 2>&1; then
+    exec mypy src/ tests/
+fi
+
+echo "mypy not found. Run: pip install -e '.[dev]'" >&2
+exit 1
