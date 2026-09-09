@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, cast
 
 import yt_dlp
 
@@ -42,7 +42,8 @@ class YouTubeService:
         """Run yt-dlp extract_info and return the result dict, or None on failure."""
         try:
             with yt_dlp.YoutubeDL(opts) as ydl:
-                return ydl.extract_info(url, download=False, **kwargs)
+                info = ydl.extract_info(url, download=False, **kwargs)
+            return cast("dict[str, Any] | None", info)
         except Exception:
             logger.exception("yt-dlp extraction failed for: %s", url)
             return None

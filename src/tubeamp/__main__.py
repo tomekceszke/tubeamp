@@ -71,7 +71,7 @@ def _hide_from_dock_macos() -> bool:
         # kProcessTransformToUIElementApplication = 4
         transform_result = carbon.TransformProcessType(byref(psn), c_int(4))
 
-        return transform_result == 0
+        return bool(transform_result == 0)
     except Exception:
         return False
 

@@ -4,18 +4,23 @@ from __future__ import annotations
 
 import contextlib
 from dataclasses import dataclass
+from typing import TYPE_CHECKING, Any
 
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.containers import VerticalScroll
 from textual.css.query import NoMatches
-from textual.events import Click
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
 from tubeamp.utils import marquee, scroll_offset
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+    from textual.events import Click
+    from textual.timer import Timer
+
 
 # Fixed-width columns: prefix(1) + selector(1) + num(3) + ". "(2) + " "(1) + dur(8) = 16
 FIXED_COLUMN_WIDTH = 16
@@ -84,11 +89,11 @@ class PlaylistWidget(Widget):
             self.index = index
             self.entry = entry
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._entries: list[PlaylistEntry] = []
-        self._scroll_timer = None
-        self._spinner_timer = None
+        self._scroll_timer: Timer | None = None
+        self._spinner_timer: Timer | None = None
         self._spinner_frames = ["|", "/", "-", "\\"]
         self._spinner_index = 0
         self._is_loading = False

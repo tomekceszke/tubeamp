@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 from textual.screen import ModalScreen
 
@@ -24,8 +24,8 @@ class ThemedModal(ModalScreen[str | None]):
         ("escape", "cancel", "Cancel"),
     ]
 
-    def __init__(self, theme: Theme, **kwargs: object) -> None:
-        super().__init__(**kwargs)  # type: ignore[arg-type]
+    def __init__(self, theme: Theme, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
         self._theme = theme
 
     def paint(self, selector: str, *, color: str = "", border: str = "") -> Widget:

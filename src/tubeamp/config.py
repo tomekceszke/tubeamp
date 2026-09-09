@@ -6,7 +6,7 @@ import dataclasses
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Self
+from typing import Any, Self
 
 DEFAULT_CONFIG_DIR = Path.home() / ".config" / "tubeamp"
 DEFAULT_CONFIG_FILE = DEFAULT_CONFIG_DIR / "config.toml"
@@ -37,7 +37,7 @@ class UIConfig:
     theme: str = "classic"
 
 
-def _filter_fields(cls: type, data: dict) -> dict:
+def _filter_fields(cls: type, data: dict[str, Any]) -> dict[str, Any]:
     """Filter a dict to only keys that are valid fields on a dataclass."""
     valid = {f.name for f in dataclasses.fields(cls)}
     return {k: v for k, v in data.items() if k in valid}

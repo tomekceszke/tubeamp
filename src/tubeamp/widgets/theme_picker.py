@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.containers import Vertical
 from textual.widgets import Label, OptionList
 from textual.widgets.option_list import Option
 
 from tubeamp.themes import Theme, get_theme
 from tubeamp.widgets._modal import ThemedModal
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
 
 
 class ThemePickerScreen(ThemedModal):
@@ -52,7 +57,7 @@ class ThemePickerScreen(ThemedModal):
     }
     """
 
-    def __init__(self, current_theme: Theme, theme_names: list[str], **kwargs: object) -> None:
+    def __init__(self, current_theme: Theme, theme_names: list[str], **kwargs: Any) -> None:
         super().__init__(current_theme, **kwargs)
         self._theme_names = theme_names
 

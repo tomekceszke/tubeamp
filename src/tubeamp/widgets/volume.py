@@ -2,12 +2,17 @@
 
 from __future__ import annotations
 
-from textual.events import Click
+from typing import TYPE_CHECKING, Any
+
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
 
 from tubeamp.widgets._color import gradient_steps
+
+if TYPE_CHECKING:
+    from textual.events import Click
+
 
 # Layout: "VOL: " (5 chars) + bar (dynamic) + " NNN%" (5 chars)
 _VOL_BAR_START = 5
@@ -37,7 +42,7 @@ class VolumeWidget(Static):
 
     volume: reactive[int] = reactive(80)
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._bar_color = "#00ff00"
         self._bar_color_top = "#00ff00"

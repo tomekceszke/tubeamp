@@ -1,12 +1,14 @@
 """Tests for the analyzed visualizer's level mapping and envelope behaviour."""
 
+from typing import Any
+
 import numpy as np
 
 from tubeamp.visualizer import AnalyzedVisualizer
 
 
-def _viz(bars: int = 16, fps: int = 30, **kwargs: object) -> AnalyzedVisualizer:
-    return AnalyzedVisualizer(bars=bars, fps=fps, **kwargs)  # type: ignore[arg-type]
+def _viz(bars: int = 16, fps: int = 30, **kwargs: Any) -> AnalyzedVisualizer:
+    return AnalyzedVisualizer(bars=bars, fps=fps, **kwargs)
 
 
 def test_normalize_leaves_headroom() -> None:

@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
-from rich.console import RenderableType
+from typing import TYPE_CHECKING, Any
+
 from rich.text import Text
-from textual.events import Click
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 
 from tubeamp.utils import format_time, marquee, scroll_offset
 from tubeamp.widgets._color import gradient_steps
+
+if TYPE_CHECKING:
+    from rich.console import RenderableType
+    from textual.events import Click
+    from textual.timer import Timer
+
 
 
 class TrackInfoWidget(Widget):
@@ -42,9 +48,9 @@ class TrackInfoWidget(Widget):
     duration: reactive[float] = reactive(0.0)
     text_scroll_offset: reactive[int] = reactive(0)
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._scroll_timer = None
+        self._scroll_timer: Timer | None = None
         self._primary = "#00ff00"
         self._primary_dim = "#00ff00"
 

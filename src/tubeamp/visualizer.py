@@ -44,15 +44,18 @@ class BaseVisualizer(ABC):
     @abstractmethod
     def num_bars(self) -> int: ...
 
-    # Optional hooks — no-op by default, overridden by AnalyzedVisualizer
+    # Optional hooks. Deliberately concrete no-ops rather than abstract: a
+    # backend that ignores the audio (SimulatedVisualizer) has nothing to do
+    # here, and forcing it to declare three empty overrides is noise. Hence
+    # the B027 suppressions.
 
-    def analyze_track(self, url: str, video_id: str) -> None:
+    def analyze_track(self, url: str, video_id: str) -> None:  # noqa: B027
         """Called when a new track starts playing. Override to pre-analyze audio."""
 
-    def set_position(self, position: float) -> None:
+    def set_position(self, position: float) -> None:  # noqa: B027
         """Called on each position update. Override to sync bar data to playback."""
 
-    def set_playing(self, is_playing: bool) -> None:
+    def set_playing(self, is_playing: bool) -> None:  # noqa: B027
         """Called on playback state changes. Override to pause/resume visualization."""
 
 

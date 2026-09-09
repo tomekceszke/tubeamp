@@ -46,6 +46,8 @@ tubeamp = "tubeamp.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tubeamp"]
+# Ship the stylesheet and the PEP 561 marker alongside the modules
+artifacts = ["src/tubeamp/py.typed", "src/tubeamp/styles/*.tcss"]
 
 [tool.ruff]
 target-version = "py311"
@@ -68,6 +70,11 @@ warn_unused_configs = true
 module = "numpy.*"
 follow_imports = "skip"
 follow_imports_for_stubs = true
+
+# Neither ships type information
+[[tool.mypy.overrides]]
+module = ["mpv", "yt_dlp"]
+ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
 from rich.text import Text
-from textual.app import ComposeResult
 from textual.css.query import NoMatches
 from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
 from tubeamp.widgets._color import hex_to_rgb, lerp_color
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
 
 # Unicode block characters for vertical bar rendering (⅛ increments)
 BAR_CHARS = " ▁▂▃▄▅▆▇█"
@@ -38,7 +43,7 @@ class SpectrumWidget(Widget):
         num_bars: int = 40,
         bar_color: str = "#00ff00",
         bar_color_top: str = "#00ff00",
-        **kwargs: object,
+        **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self._num_bars = num_bars

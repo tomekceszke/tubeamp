@@ -5,17 +5,14 @@ import pytest
 from tubeamp.widgets.controls import (
     _BOX_WIDTH,
     _BUTTONS,
+    _Layout,
     _resolve_layout,
 )
 
 
-def _row_width(layout, row: int = 0) -> int:
+def _row_width(layout: _Layout) -> int:
     """Rendered width of one row for this layout."""
-    return (
-        layout.left_pad
-        + layout.cell_width * len(_BUTTONS)
-        + sum(layout.gaps)
-    )
+    return layout.left_pad + layout.cell_width * len(_BUTTONS) + sum(layout.gaps)
 
 
 @pytest.mark.parametrize("width", range(1, 121))

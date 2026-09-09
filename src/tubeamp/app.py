@@ -9,10 +9,9 @@ import logging
 import random
 import threading
 import time
-from collections.abc import Callable
 from functools import partial
 from pathlib import Path
-from typing import Any, TypeVar, cast
+from typing import TYPE_CHECKING, Any, TypeVar, cast
 
 from textual.app import App, ComposeResult
 from textual.binding import Binding
@@ -38,6 +37,10 @@ from tubeamp.widgets.theme_picker import ThemePickerScreen
 from tubeamp.widgets.track_info import TrackInfoWidget
 from tubeamp.widgets.volume import VolumeWidget
 from tubeamp.youtube import YouTubeService, YouTubeTrack
+
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 
 logger = logging.getLogger(__name__)
 
@@ -575,12 +578,15 @@ class TubeAmpApp(App[None]):
     def action_playlist_select(self) -> None:
         self._playlist.confirm_selection()
 
-    def action_screenshot(self) -> None:
-        """Save a screenshot of the current UI."""
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-        path = f"tubeamp_screenshot_{timestamp}.svg"
-        self.save_screenshot(path)
-        self.notify(f"Screenshot saved: {path}", severity="information")
+    def action_screenshot(
+        self, filename: str | None = None, path: str | None = None
+    ) -> None:
+        """Save an SVG screenshot of the current UI to the working directory."""
+        if filename is None:
+            timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+            filename = f"tubeamp_screenshot_{timestamp}.svg"
+        self.save_screenshot(filename, path)
+        self.notify(f"Screenshot saved: {filename}", severity="information")
 
     def action_help(self) -> None:
         self.notify(
@@ -685,8 +691,8 @@ class TubeAmpApp(App[None]):
 
     # ── Lifecycle ───────────────────────────────────────────────
 
-    def action_quit(self) -> None:
-        """Fast shutdown - cleanup happens in background."""
+    async def action_quit(self) -> None:
+        """Fast shutdown — the OS reclaims the child processes."""
         # Intentionally catching all exceptions for fast exit — OS cleans up processes
         with contextlib.suppress(Exception):
             self._config.save()

@@ -2,11 +2,16 @@
 
 from __future__ import annotations
 
-from textual.app import ComposeResult
+from typing import TYPE_CHECKING
+
 from textual.containers import Vertical
 from textual.widgets import Input, Label, Static
 
 from tubeamp.widgets._modal import ThemedModal
+
+if TYPE_CHECKING:
+    from textual.app import ComposeResult
+
 
 
 class SearchScreen(ThemedModal):

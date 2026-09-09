@@ -2,14 +2,17 @@
 
 from __future__ import annotations
 
-from typing import NamedTuple
+from typing import TYPE_CHECKING, Any, NamedTuple
 
-from rich.console import RenderableType
 from rich.text import Text
-from textual.events import Click
 from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
+
+if TYPE_CHECKING:
+    from rich.console import RenderableType
+    from textual.events import Click
+
 
 _BOX_WIDTH = 7  # "┌─────┐"
 
@@ -121,7 +124,7 @@ class ControlsWidget(Widget):
         "repeat": RepeatClicked,
     }
 
-    def __init__(self, **kwargs: object) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         # Theme colors
         self._primary = "#00ff00"
