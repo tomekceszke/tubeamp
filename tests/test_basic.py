@@ -1,13 +1,15 @@
 """Basic smoke tests for TubeAmp modules."""
 
+from importlib.metadata import version
+
 from tubeamp import __app_name__, __version__
 from tubeamp.config import AppConfig, AudioConfig, VisualizerConfig
 from tubeamp.visualizer import SimulatedVisualizer
 from tubeamp.youtube import YouTubeTrack
 
 
-def test_version() -> None:
-    assert __version__ == "0.1.0"
+def test_version_matches_package_metadata() -> None:
+    assert __version__ == version("tubeamp")
     assert __app_name__ == "tubeamp"
 
 

@@ -4,10 +4,11 @@ build-backend = "hatchling.build"
 
 [project]
 name = "tubeamp"
-version = "0.1.0"
+dynamic = ["version"]
 description = "A retro-styled TUI music player powered by YouTube"
 readme = "README.md"
 license = "MIT"
+license-files = ["LICENSE"]
 requires-python = ">=3.11"
 authors = [
     { name = "Tomek Ceszke" },
@@ -21,12 +22,15 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Multimedia :: Sound/Audio :: Players",
+    "Typing :: Typed",
 ]
 dependencies = [
     "textual>=1.0.0",
     "python-mpv>=1.0.7",
-    "yt-dlp>=2024.0.0",
+    # Older releases are rejected by YouTube with HTTP 403
+    "yt-dlp>=2025.1.1",
     "rich>=13.0.0",
     "tomli-w>=1.0.0",
     "numpy>=1.26",
@@ -41,8 +45,18 @@ dev = [
     "pre-commit>=4.0",
 ]
 
+[project.urls]
+Homepage = "https://github.com/tomekceszke/tubeamp"
+Repository = "https://github.com/tomekceszke/tubeamp"
+Issues = "https://github.com/tomekceszke/tubeamp/issues"
+Changelog = "https://github.com/tomekceszke/tubeamp/blob/main/CHANGELOG.md"
+
 [project.scripts]
 tubeamp = "tubeamp.__main__:main"
+
+# Single source of truth for the version
+[tool.hatch.version]
+path = "src/tubeamp/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/tubeamp"]
