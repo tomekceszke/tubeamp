@@ -32,7 +32,7 @@ class _Button(NamedTuple):
 _BUTTONS: tuple[_Button, ...] = (
     _Button("stop", "■"),
     _Button("play_pause", "▶"),
-    _Button("pause", "‖"),
+    _Button("pause", "Ⅱ"),
     _Button("shuffle", "S"),
     _Button("repeat", "R"),
 )
@@ -86,7 +86,7 @@ class ControlsWidget(Widget):
 
     Layout:
         ┌─────┐  ┌─────┐  ┌─────┐    ┌─────┐  ┌─────┐
-        │  ■  │  │  ▶  │  │  ‖  │    │  S  │  │  R  │
+        │  ■  │  │  ▶  │  │  Ⅱ  │    │  S  │  │  R  │
         └─────┘  └─────┘  └─────┘    └─────┘  └─────┘
 
     Gaps tighten as the player narrows, then the boxes are dropped for

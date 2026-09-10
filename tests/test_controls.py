@@ -68,3 +68,11 @@ def test_degenerate_width_still_resolves() -> None:
     layout = _resolve_layout(1)
     assert layout.cell_width == 1
     assert layout.left_pad == 0
+
+
+def test_every_glyph_is_one_column_wide() -> None:
+    """The boxed cell has room for exactly one column, and click regions assume it."""
+    from rich.cells import cell_len
+
+    for button in _BUTTONS:
+        assert cell_len(button.glyph) == 1, button
