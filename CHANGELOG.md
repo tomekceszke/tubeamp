@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5] - 2026-09-10
+
+### Added
+
+- `Esc` quits from the main screen, alongside `q`. Inside the search and theme
+  dialogs it still only closes the dialog, because a screen's own binding takes
+  precedence over the app's
+
+### Changed
+
+- The pause button shows `Ⅱ` (U+2161) instead of `‖` (U+2016), which drew as a
+  tall thin double rule in most terminal fonts and did not read as pause. It is
+  one column wide, so the boxed layout and the click regions are unchanged. The
+  README screenshot is re-captured
+
+### Fixed
+
+- `h` crashed the app with `MarkupError: auto closing tag ('[/]') has nothing to
+  close`. The help toast lists `[` and `]` as the bar-count keys, and Textual reads
+  a toast as markup, so `[/]` was a closing tag with nothing to close
+- Error toasts for a failed search or a failed playlist page carry the yt-dlp
+  message verbatim. yt-dlp prefixes its errors with the extractor in brackets
+  (`[youtube]`), which the markup parser silently swallowed, and a stray closing
+  tag in one would have crashed the app the same way `h` did
+
 ## [0.1.4] - 2026-09-10
 
 ### Changed
@@ -112,7 +137,8 @@ First public release.
   warnings; the mpv wrapper and the YouTube service are covered only through
   their data models
 
-[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.4...HEAD
+[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.5...HEAD
+[0.1.5]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.5
 [0.1.4]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.4
 [0.1.3]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.3
 [0.1.2]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.2
