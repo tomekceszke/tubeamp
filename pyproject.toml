@@ -63,6 +63,19 @@ packages = ["src/tubeamp"]
 # Ship the stylesheet and the PEP 561 marker alongside the modules
 artifacts = ["src/tubeamp/py.typed", "src/tubeamp/styles/*.tcss"]
 
+# An allow-list, not an exclude-list: a private file dropped in the repo root
+# (local.toml, cookies.txt, a screenshot) has no way to slip into the archive
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests",
+    "/README.md",
+    "/CHANGELOG.md",
+    "/LICENSE",
+    "/CONTRIBUTING.md",
+    "/ARCHITECTURE.md",
+]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 100

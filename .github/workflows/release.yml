@@ -1,0 +1,96 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      # The version lives only in src/tubeamp/__init__.py; a tag that disagrees
+      # with it would publish a file nobody can trace back to a commit
+      - name: Check the tag against the package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg=$(python -c 'import re,pathlib; print(re.search(r"__version__ = \"([^\"]+)\"", pathlib.Path("src/tubeamp/__init__.py").read_text()).group(1))')
+          if [ "$tag" != "$pkg" ]; then
+            echo "tag $GITHUB_REF_NAME does not match __version__ $pkg" >&2
+            exit 1
+          fi
+          echo "version $pkg"
+
+      - name: Build the distribution
+        run: |
+          pip install build
+          python -m build
+
+      - name: Check the metadata
+        run: |
+          pip install twine
+          twine check dist/*
+
+      # Blocking: nothing private leaves this repo, and the wheel carries the
+      # stylesheet and the typing marker
+      - name: Audit the archives
+        run: python scripts/audit_sdist.py
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  publish-pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      # Trusted Publishing: the OIDC token replaces a stored API token, and
+      # gh-action-pypi-publish attaches PEP 740 attestations by default
+      id-token: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      # The section for this tag, from its heading up to the next one
+      - name: Extract the changelog entry
+        run: |
+          awk -v ver="${GITHUB_REF_NAME#v}" '
+            $0 ~ "^## \\[" ver "\\]" { found = 1; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+          if [ ! -s release-notes.md ]; then
+            echo "See CHANGELOG.md." > release-notes.md
+          fi
+
+      - name: Create the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --notes-file release-notes.md

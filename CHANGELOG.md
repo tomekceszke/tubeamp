@@ -23,13 +23,30 @@ First public release.
   analysis runs far faster than real time — a 3:46 track takes about two seconds
 - Keyboard-driven interface with shuffle, three repeat modes, seeking,
   volume control and an adjustable bar count
-- Six colour themes (Classic, Amber, Monochrome, Cyberpunk, Synthwave, Retro)
-  applied across every widget, including toasts and scrollbars
-- Configuration in TOML at `~/.config/tubeamp/config.toml`, with optional local
-  overrides in `local.toml`. `TUBEAMP_LOG_LEVEL` controls log verbosity
-- `install.sh` installs the system dependencies for macOS, Debian/Ubuntu, Arch
-  and Fedora, then verifies that libmpv, ffmpeg and the package all load before
-  reporting success
+- Ten dark colour themes (Classic, Monochrome, Amber, Commander, Cyberpunk,
+  Synthwave, htop, Ayu Dark, Gruvbox Dark, Dracula) applied across every widget,
+  including toasts and scrollbars. `themes.py` is the only place a colour is
+  written down, and a test fails the build if a widget grows one of its own
+- An empty playlist shows what to press: `/` to search or paste a playlist URL,
+  `h` for the full keybinding list, `t` for themes
+- `tubeamp --version` and `tubeamp --help` answer without starting the TUI
+- A missing libmpv is reported as one sentence naming the package to install for
+  the platform in hand, instead of the import-time traceback python-mpv raises
+- A missing ffmpeg is called out at startup, so the placeholder spectrum reads as
+  a missing dependency rather than a broken visualizer
+- Configuration in TOML at `~/.config/tubeamp/config.toml`. A `local.toml` in a
+  source checkout overrides it, and is only read when a `pyproject.toml` sits
+  beside it, so an installed copy never picks one up from the working directory.
+  `TUBEAMP_LOG_LEVEL` controls log verbosity
+- Published to PyPI from a tagged commit through Trusted Publishing, with PEP 740
+  attestations, so every file traces back to the workflow run that built it
+- `install.sh` works two ways from one file: piped from `curl` it installs the
+  released package into `~/.local/share/tubeamp` and links it into `~/.local/bin`,
+  while from a checkout it installs the working tree in editable mode. It installs
+  the system dependencies for macOS, Debian/Ubuntu, Arch, Fedora and openSUSE,
+  shows and confirms every command needing `sudo`, offers to put `~/.local/bin` on
+  `PATH`, and verifies that libmpv, ffmpeg and the package all load before reporting
+  success. `--dry-run`, `--yes` and `--uninstall` are supported
 - `run.sh` rebuilds the virtualenv automatically if a Python upgrade has left
   its interpreter symlinks dangling
 
@@ -37,8 +54,9 @@ First public release.
 
 - The audio output device is fixed to the system default; `Player` accepts a
   device name but nothing exposes it in the configuration
-- No test coverage for the application layer, the mpv wrapper, or the YouTube
-  service beyond its data model
+- Test coverage of the application layer stops at startup and the dependency
+  warnings; the mpv wrapper and the YouTube service are covered only through
+  their data models
 
 [Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.0...HEAD
 [0.1.0]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.0

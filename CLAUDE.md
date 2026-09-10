@@ -49,6 +49,14 @@ The application requires external system tools:
 visualizer subprocess and mpv's `ytdl_hook` both find that copy rather than an
 older distribution package.
 
+Both absences are reported rather than left to fail on their own:
+- python-mpv resolves libmpv at **import** time and raises `OSError`, which means
+  the `try/except` around `Player()` in `_init_services()` never sees it.
+  `_require_libmpv()` in `__main__.py` imports it first and prints the package to
+  install for the platform in hand — do not move that check into the app
+- ffmpeg only feeds the analysed visualizer, so `_init_services()` warns via a toast
+  and carries on with the simulated bars
+
 ## Architecture
 
 ### Layered Design
@@ -105,6 +113,18 @@ The codebase follows a three-layer architecture:
 - `CACHE_VERSION` must be bumped whenever the analysis or normalization changes, or
   cached frames from the old format will be replayed
 
+**Theming — no colour lives outside `themes.py`:**
+- A widget must not carry a hex literal. Everything on screen (background,
+  frame, separators, inactive buttons, empty bar segments, the spectrum
+  gradient) is a `Theme` field, painted by `theming.py`; `tests/test_themes.py`
+  fails the build if a widget or the stylesheet grows a hex of its own
+- A new colour is a new `Theme` field plus a line in `theming.py`, and every
+  theme has to spell it out — the dataclass has no defaults on purpose
+- `tubeamp.tcss` uses `$background` / `$surface` / `$panel`, which come from the
+  Textual theme registered in `to_textual_theme()`
+- Themes are looked up by key, not by display name; `ALIASES` keeps a config
+  that names a retired theme (`retro`) working
+
 **Thread safety:**
 - Player events fire from mpv's background thread
 - Use `_safe_call()` to marshal updates to main thread
@@ -158,6 +178,9 @@ tracks = await loop.run_in_executor(None, blocking_function, args)
 - Overrides global config settings
 - Used for personal settings like default playlists
 - Example: `local.toml.example`
+- The lookup is relative to the working directory, so it is gated on a sibling
+  `pyproject.toml`. An installed `tubeamp` is launched from anywhere, and an
+  unrelated `local.toml` sitting there must not rewrite the user's config
 
 Configuration priority: `local.toml` > `~/.config/tubeamp/config.toml` > defaults
 
@@ -180,6 +203,18 @@ Logs written to `~/.config/tubeamp/tubeamp.log`:
   interpreter symlinks go dangling (a Homebrew Python upgrade does exactly that)
 - `python3 -m venv` pins the venv to one interpreter path — never assume an existing
   venv still works, probe it with `.venv/bin/python -c ''`
+
+**Publishing:**
+- A tag `v*` triggers `.github/workflows/release.yml`, which checks the tag against
+  `__version__`, builds, audits, publishes to PyPI via Trusted Publishing (OIDC, no
+  stored token) and cuts a GitHub Release. Bump `src/tubeamp/__init__.py` first — the
+  workflow fails on a mismatch rather than shipping an untraceable version
+- `scripts/audit_sdist.py` is the gate on what leaves the repo: it fails on a private
+  file in either archive (`local.toml`, cookies, screenshots, `.venv`, `.claude`) and
+  on a wheel missing `styles/tubeamp.tcss` or `py.typed`. It runs in CI as well as at
+  the tag, so a leak surfaces on the pull request
+- `[tool.hatch.build.targets.sdist]` is an allow-list on purpose; a new file in the
+  repo root is excluded until someone names it
 
 ## Common Tasks
 

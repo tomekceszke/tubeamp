@@ -5,6 +5,7 @@ from __future__ import annotations
 import logging
 import os
 import platform
+import shutil
 import sys
 from pathlib import Path
 
@@ -76,9 +77,91 @@ def _hide_from_dock_macos() -> bool:
         return False
 
 
+USAGE = """\
+tubeamp — a retro-styled terminal music player powered by YouTube
+
+Usage: tubeamp [--version] [--help]
+
+The player is driven from inside the TUI; press '/' to search YouTube or to
+paste a playlist URL, and 'h' for the full list of keybindings.
+
+Configuration: ~/.config/tubeamp/config.toml
+Log file:      ~/.config/tubeamp/tubeamp.log (set TUBEAMP_LOG_LEVEL=DEBUG for detail)
+"""
+
+
+def _handle_cli_flags(argv: list[str]) -> bool:
+    """Answer --version/--help without starting the TUI.
+
+    Returns True when the process should exit instead of launching the app.
+    A packaged install has no other way to report its version: `brew test`
+    needs it, and so does anyone filing a bug report.
+    """
+    from tubeamp import __version__
+
+    if "--version" in argv or "-V" in argv:
+        print(f"tubeamp {__version__}")
+        return True
+    if "--help" in argv or "-h" in argv:
+        print(USAGE, end="")
+        return True
+    return False
+
+
+def _libmpv_hint() -> str:
+    """Name the package that carries libmpv on the platform in hand."""
+    if platform.system() == "Darwin":
+        return "  brew install mpv"
+    if platform.system() == "Windows":
+        return (
+            "  Native Windows is not supported: the official mpv build ships no\n"
+            "  libmpv-2.dll. Run TubeAmp under WSL2 and follow the Linux steps."
+        )
+
+    managers = (
+        ("apt-get", "sudo apt install mpv libmpv2"),
+        ("dnf", "sudo dnf install mpv mpv-libs"),
+        ("pacman", "sudo pacman -S mpv"),
+        ("zypper", "sudo zypper install mpv libmpv2"),
+    )
+    for command, hint in managers:
+        if shutil.which(command):
+            return f"  {hint}"
+    return "  Install your distribution's mpv package and its libmpv runtime library"
+
+
+def _require_libmpv() -> bool:
+    """Report a missing libmpv in one sentence instead of a traceback.
+
+    python-mpv resolves the shared library at import time and raises OSError,
+    so the guard inside the app's service setup never gets a chance to run.
+    Importing it here keeps that failure — by far the most likely one on a
+    fresh install — from reaching the user as a stack trace.
+    """
+    try:
+        import mpv  # noqa: F401
+    except OSError:
+        print(
+            "TubeAmp could not load libmpv, the library it plays audio through.\n"
+            "\n"
+            f"{_libmpv_hint()}\n"
+            "\n"
+            "ffmpeg is needed as well, for the spectrum visualizer.",
+            file=sys.stderr,
+        )
+        return False
+    return True
+
+
 def main() -> None:
     """Launch the TubeAmp application."""
+    if _handle_cli_flags(sys.argv[1:]):
+        return
+
     _put_venv_bin_on_path()
+
+    if not _require_libmpv():
+        raise SystemExit(1)
 
     # On macOS, prevent the app from appearing in the Dock and bouncing
     if platform.system() == "Darwin":

@@ -1,6 +1,8 @@
 # Example local TubeAmp configuration
 # Copy this file to local.toml and customize for your personal settings
 # local.toml is in .gitignore and won't be committed
+# It is only read when a pyproject.toml sits beside it, so it applies to a
+# source checkout and never to an installed copy run from another directory
 
 [youtube]
 # Default playlist or video to load on startup

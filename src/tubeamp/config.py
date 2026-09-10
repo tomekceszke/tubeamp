@@ -77,9 +77,13 @@ class AppConfig:
                 ),
             )
 
-        # Override with local.toml if present (repo-local settings)
+        # Override with local.toml if present (repo-local settings).
+        # The lookup is relative to the working directory, so it is gated on a
+        # sibling pyproject.toml: an installed `tubeamp` is launched from
+        # wherever the user happens to be, and an unrelated local.toml sitting
+        # there must not silently rewrite their configuration.
         local_config = Path("local.toml")
-        if local_config.exists():
+        if local_config.exists() and Path("pyproject.toml").exists():
             with open(local_config, "rb") as f:
                 local_data = tomllib.load(f)
 
