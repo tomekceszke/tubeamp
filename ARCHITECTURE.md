@@ -8,31 +8,27 @@ visualizer. It follows a layered architecture with clear separation of concerns.
 ## System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────┐
+┌──────────────────────────────────────────────────────────┐
 │                    Textual TUI Layer                     │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌───────────┐  │
-│  │ Spectrum  │ │TrackInfo │ │ Controls │ │ Playlist  │  │
-│  │ Widget    │ │ Widget   │ │ Widget   │ │ Widget    │  │
-│  └────┬─────┘ └────┬─────┘ └────┬─────┘ └─────┬─────┘  │
-│       │             │            │              │        │
-├───────┼─────────────┼────────────┼──────────────┼────────┤
-│       │        Application Core (app.py)        │        │
-│       │    ┌────────────────────────────┐       │        │
-│       │    │    Event Bus / Reactivity  │       │        │
-│       │    └────────────────────────────┘       │        │
-├───────┼─────────────────────────────────────────┼────────┤
-│  Service Layer                                           │
-│  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
-│  │  player.py   │  │  youtube.py  │  │ visualizer.py │  │
-│  │  (mpv wrap)  │  │  (yt-dlp)   │  │ (FFT analysis)│  │
-│  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘  │
-├─────────┼─────────────────┼───────────────────┼──────────┤
-│  External Dependencies                                   │
-│  ┌──────┴───────┐  ┌──────┴───────┐  ┌───────┴───────┐  │
-│  │   libmpv     │  │   yt-dlp     │  │   ffmpeg      │  │
-│  │   (C lib)    │  │   (Python)   │  │   (binary)    │  │
-│  └──────────────┘  └──────────────┘  └───────────────┘  │
-└─────────────────────────────────────────────────────────┘
+│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │
+│  │ Spectrum │  │TrackInfo │  │ Controls │  │ Playlist │  │
+│  └──────────┘  └──────────┘  └──────────┘  └──────────┘  │
+├──────────────────────────────────────────────────────────┤
+│                Application Core (app.py)                 │
+│            events · reactivity · keybindings             │
+├──────────────────────────────────────────────────────────┤
+│                      Service Layer                       │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐  │
+│  │  player.py   │   │  youtube.py  │   │visualizer.py │  │
+│  │  (mpv wrap)  │   │   (yt-dlp)   │   │(FFT analysis)│  │
+│  └──────────────┘   └──────────────┘   └──────────────┘  │
+├──────────────────────────────────────────────────────────┤
+│                  External Dependencies                   │
+│  ┌──────────────┐   ┌──────────────┐   ┌──────────────┐  │
+│  │    libmpv    │   │    yt-dlp    │   │    ffmpeg    │  │
+│  │ (C library)  │   │   (Python)   │   │   (binary)   │  │
+│  └──────────────┘   └──────────────┘   └──────────────┘  │
+└──────────────────────────────────────────────────────────┘
 ```
 
 ## Component Details
@@ -175,7 +171,7 @@ cookies_browser = "firefox"  # or chrome, brave, etc.
 default_playlist = ""        # auto-load on startup
 
 [ui]
-theme = "classic"  # classic, amber, monochrome, cyberpunk, synthwave, retro
+theme = "classic"  # classic, monochrome, amber, commander, cyberpunk, synthwave, htop, ayu, gruvbox, dracula
 ```
 
 ## Future Considerations
