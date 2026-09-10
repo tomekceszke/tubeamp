@@ -1,17 +1,22 @@
-/* TubeAmp — Themeable retro UI */
+/* TubeAmp — Themeable retro UI
+ *
+ * No literal colours here: `$background`/`$surface` come from the Textual
+ * theme registered in themes.py, and anything else is painted from
+ * theming.py. A hex in this file would survive every theme switch.
+ */
 
 Screen {
-    background: #0a0a0a;
+    background: $background;
     align: center middle;
 }
 
 /* ── Main Container ─────────────────────────────── */
 
 #player-container {
-    max-width: 100;
+    max-width: 86;
     width: 100%;
     border: heavy;
-    background: #0a0a0a;
+    background: $background;
 }
 
 /* ── Main Panel (Horizontal split: 60/40) ─────── */
@@ -26,7 +31,7 @@ Screen {
 SpectrumWidget {
     width: 1fr;
     height: 7;
-    background: #0a0a0a;
+    background: transparent;
 }
 
 /* ── Vertical Divider ──────────────────────────── */
@@ -34,7 +39,7 @@ SpectrumWidget {
 #panel-divider {
     width: 1;
     height: 100%;
-    background: #0a0a0a;
+    background: transparent;
 }
 
 /* ── Right Panel (Volume + Controls, 40%) ──────── */
@@ -48,7 +53,7 @@ SpectrumWidget {
 
 VolumeWidget {
     height: 3;
-    background: #0a0a0a;
+    background: transparent;
     padding: 1 1;
 }
 
@@ -57,13 +62,11 @@ VolumeWidget {
 .section-separator {
     height: 1;
     width: 100%;
-    color: #333333;
 }
 
 .panel-separator {
     height: 1;
     width: 100%;
-    color: #222222;
     padding: 0 1;
 }
 

@@ -9,6 +9,8 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 
+from tubeamp.themes import DEFAULT_THEME
+
 if TYPE_CHECKING:
     from rich.console import RenderableType
     from textual.events import Click
@@ -126,17 +128,24 @@ class ControlsWidget(Widget):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        # Theme colors
-        self._primary = "#00ff00"
-        self._shuffle_active = "#00ffff"
-        self._repeat_all = "#ffff00"
-        self._repeat_one = "#ff00ff"
+        # Theme colors, until the first apply_theme()
+        self._primary = DEFAULT_THEME.primary_bright
+        self._inactive = DEFAULT_THEME.text_dim
+        self._shuffle_active = DEFAULT_THEME.shuffle_active
+        self._repeat_all = DEFAULT_THEME.repeat_all
+        self._repeat_one = DEFAULT_THEME.repeat_one
 
     def set_theme(
-        self, primary: str, shuffle_active: str, repeat_all: str, repeat_one: str
+        self,
+        primary: str,
+        inactive: str,
+        shuffle_active: str,
+        repeat_all: str,
+        repeat_one: str,
     ) -> None:
         """Set theme colors for the controls."""
         self._primary = primary
+        self._inactive = inactive
         self._shuffle_active = shuffle_active
         self._repeat_all = repeat_all
         self._repeat_one = repeat_one
@@ -196,10 +205,10 @@ class ControlsWidget(Widget):
         else:
             text = " " if row != 1 else button.glyph
 
+        # Escape nothing here: glyphs and box characters carry no markup
         color = self._active_color(button.name)
         if color is None:
-            return text
-        # Escape nothing here: glyphs and box characters carry no markup
+            return f"[{self._inactive}]{text}[/]"
         return f"[bold {color}]{text}[/]"
 
     def render(self) -> RenderableType:

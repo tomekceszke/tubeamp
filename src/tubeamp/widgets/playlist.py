@@ -14,6 +14,7 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
+from tubeamp.themes import DEFAULT_THEME
 from tubeamp.utils import marquee, scroll_offset
 
 if TYPE_CHECKING:
@@ -24,6 +25,19 @@ if TYPE_CHECKING:
 
 # Fixed-width columns: prefix(1) + selector(1) + num(3) + ". "(2) + " "(1) + dur(8) = 16
 FIXED_COLUMN_WIDTH = 16
+
+# What an empty playlist offers a first-time user. The wide description is the
+# one that names the paste-a-URL trick, so it gets a short form for narrow
+# terminals rather than being allowed to wrap.
+WELCOME_HEADLINE = "Nothing loaded yet."
+WELCOME_HINTS: tuple[tuple[str, str, str], ...] = (
+    ("/", "search \u2014 artist, song, or paste a YouTube playlist URL", "search or paste a URL"),
+    ("h", "all keybindings", "keybindings"),
+    ("t", "themes", "themes"),
+    ("q", "quit", "quit"),
+)
+# Headline + blank line + one row per hint
+WELCOME_HEIGHT = 2 + len(WELCOME_HINTS)
 
 
 @dataclass
@@ -60,9 +74,6 @@ class PlaylistWidget(Widget):
         scrollbar-background: transparent;
         scrollbar-background-hover: transparent;
         scrollbar-background-active: transparent;
-        scrollbar-color: #006400;
-        scrollbar-color-hover: #008000;
-        scrollbar-color-active: #00ff00;
     }
 
     #playlist-content {
@@ -98,21 +109,33 @@ class PlaylistWidget(Widget):
         self._spinner_index = 0
         self._is_loading = False
         # Theme colors
-        self._selection_bg = "#00ff00"
-        self._selection_fg = "#000000"
-        self._playing_color = "#00ff00"
+        self._selection_bg = DEFAULT_THEME.selection_bg
+        self._selection_fg = DEFAULT_THEME.selection_fg
+        self._playing_color = DEFAULT_THEME.playing
+        self._hint_key = DEFAULT_THEME.primary
+        self._hint_text = DEFAULT_THEME.text_dim
 
-    def set_theme(self, selection_bg: str, selection_fg: str, playing_color: str) -> None:
+    def set_theme(
+        self,
+        selection_bg: str,
+        selection_fg: str,
+        playing_color: str,
+        divider: str = "",
+        hint_key: str = "",
+        hint_text: str = "",
+    ) -> None:
         """Set theme colors for the playlist."""
         self._selection_bg = selection_bg
         self._selection_fg = selection_fg
         self._playing_color = playing_color
+        self._hint_key = hint_key or DEFAULT_THEME.primary
+        self._hint_text = hint_text or DEFAULT_THEME.text_dim
 
         # The resting scrollbar stays near-invisible; it only picks up the
         # theme colour under the pointer
         with contextlib.suppress(NoMatches):
             scroll = self.query_one("#playlist-scroll")
-            scroll.styles.scrollbar_color = "#333333"
+            scroll.styles.scrollbar_color = divider or DEFAULT_THEME.divider
             scroll.styles.scrollbar_color_hover = playing_color
             scroll.styles.scrollbar_color_active = playing_color
 
@@ -120,7 +143,7 @@ class PlaylistWidget(Widget):
 
     def compose(self) -> ComposeResult:
         with VerticalScroll(id="playlist-scroll", can_focus=False):
-            yield Static("No playlist loaded. Press / to search.", id="playlist-content")
+            yield Static("", id="playlist-content")
         yield Static("", id="playlist-spacer")
 
     def set_entries(self, entries: list[PlaylistEntry], reset: bool = False) -> None:
@@ -279,6 +302,31 @@ class PlaylistWidget(Widget):
         elif line_y > visible_start + visible_height - 1:
             scroll_container.scroll_to(y=line_y - visible_height + 1, animate=False)
 
+    def _welcome_text(self) -> Text:
+        """Build the first-run hint block shown while the playlist is empty.
+
+        Sits a third of the way down the panel rather than hard against the
+        top, and falls back to short descriptions before the widest line would
+        wrap — a wrapped row would push the block past the panel's height.
+        """
+        width = self.size.width - 2 if self.size.width > 20 else 116
+        # 6 = two leading spaces, the key, three spaces of gutter
+        wide = width >= max(len(long) for _, long, _ in WELCOME_HINTS) + 6
+
+        text = Text(no_wrap=True, overflow="crop")
+        available = self.size.height - 2  # the spacer below the scroll area
+        for _ in range(max(0, (available - WELCOME_HEIGHT) // 3)):
+            text.append("\n")
+
+        text.append(f"{WELCOME_HEADLINE}\n\n", style=self._hint_text)
+        for i, (key, long, short) in enumerate(WELCOME_HINTS):
+            text.append("  ")
+            text.append(key, style=f"bold {self._hint_key}")
+            text.append(f"   {long if wide else short}", style=self._hint_text)
+            if i < len(WELCOME_HINTS) - 1:
+                text.append("\n")
+        return text
+
     def _refresh_display(self) -> None:
         try:
             content = self.query_one("#playlist-content", Static)
@@ -290,7 +338,7 @@ class PlaylistWidget(Widget):
                 spinner = self._spinner_frames[self._spinner_index]
                 content.update(f"{spinner} Loading default playlist...")
             else:
-                content.update("No playlist loaded. Press / to search.")
+                content.update(self._welcome_text())
             return
 
         # Fall back to a generous default before the widget has been sized

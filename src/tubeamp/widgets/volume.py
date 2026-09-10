@@ -8,6 +8,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widgets import Static
 
+from tubeamp.themes import DEFAULT_THEME
 from tubeamp.widgets._color import gradient_steps
 
 if TYPE_CHECKING:
@@ -44,13 +45,17 @@ class VolumeWidget(Static):
 
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
-        self._bar_color = "#00ff00"
-        self._bar_color_top = "#00ff00"
+        self._bar_color = DEFAULT_THEME.primary_dim
+        self._bar_color_top = DEFAULT_THEME.primary_bright
+        self._dim = DEFAULT_THEME.text_dim
 
-    def set_theme(self, bar_color: str, bar_color_top: str = "") -> None:
+    def set_theme(
+        self, bar_color: str, bar_color_top: str = "", dim: str = ""
+    ) -> None:
         """Set theme colors for the volume bar."""
         self._bar_color = bar_color
         self._bar_color_top = bar_color_top or bar_color
+        self._dim = dim or bar_color
         self.update_bar()
 
     def watch_volume(self, _: int) -> None:
@@ -90,6 +95,10 @@ class VolumeWidget(Static):
                 self._bar_color, self._bar_color_top, filled, bar_width
             )
         )
-        empty_bar = "░" * (bar_width - filled)
+        empty = "░" * (bar_width - filled)
+        empty_bar = f"[{self._dim}]{empty}[/]" if empty else ""
 
-        self.update(f"[dim]VOL:[/] {filled_bar}{empty_bar} [bold]{constrained_volume:3d}%[/]")
+        self.update(
+            f"[{self._dim}]VOL:[/] {filled_bar}{empty_bar} "
+            f"[bold]{constrained_volume:3d}%[/]"
+        )

@@ -28,7 +28,7 @@ class SearchScreen(ThemedModal):
     #search-dialog {
         width: 80;
         height: 11;
-        background: #0a0a0a;
+        background: $surface;
         padding: 1 2;
     }
 
@@ -44,7 +44,7 @@ class SearchScreen(ThemedModal):
         margin-top: 1;
         height: 3;
         width: 100%;
-        background: #1a1a1a;
+        background: $panel;
     }
 
     #search-hint {

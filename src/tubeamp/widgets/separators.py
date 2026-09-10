@@ -2,18 +2,32 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from rich.text import Text
 from textual.widget import Widget
 from textual.widgets import Static
 
-DIVIDER_STYLE = "#333333"
+from tubeamp.themes import DEFAULT_THEME
+
+# Only what is on screen before the first apply_theme() lands; the themes own
+# the colour from there on.
+DEFAULT_DIVIDER_COLOR = DEFAULT_THEME.divider
 
 
 class PanelDivider(Widget):
     """Vertical rule between the spectrum and the controls panel."""
 
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self._color = DEFAULT_DIVIDER_COLOR
+
+    def set_divider_color(self, color: str) -> None:
+        self._color = color
+        self.refresh()
+
     def render(self) -> Text:
-        return Text("\n".join(["║"] * max(self.size.height, 1)), style=DIVIDER_STYLE)
+        return Text("\n".join(["║"] * max(self.size.height, 1)), style=self._color)
 
 
 class HorizontalRule(Static):
@@ -25,6 +39,14 @@ class HorizontalRule(Static):
 
     INSET = 0
     MIN_WIDTH = 40
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.styles.color = DEFAULT_DIVIDER_COLOR
+
+    def set_divider_color(self, color: str) -> None:
+        self.styles.color = color
+        self.refresh()
 
     def on_mount(self) -> None:
         self._draw()

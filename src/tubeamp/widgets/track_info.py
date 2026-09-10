@@ -9,6 +9,7 @@ from textual.message import Message
 from textual.reactive import reactive
 from textual.widget import Widget
 
+from tubeamp.themes import DEFAULT_THEME
 from tubeamp.utils import format_time, marquee, scroll_offset
 from tubeamp.widgets._color import gradient_steps
 
@@ -51,13 +52,15 @@ class TrackInfoWidget(Widget):
     def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
         self._scroll_timer: Timer | None = None
-        self._primary = "#00ff00"
-        self._primary_dim = "#00ff00"
+        self._primary = DEFAULT_THEME.primary_bright
+        self._primary_dim = DEFAULT_THEME.primary_dim
+        self._dim = DEFAULT_THEME.text_dim
 
-    def set_theme(self, primary: str, primary_dim: str = "") -> None:
+    def set_theme(self, primary: str, primary_dim: str = "", dim: str = "") -> None:
         """Set theme colors for the track info."""
         self._primary = primary
         self._primary_dim = primary_dim or primary
+        self._dim = dim or self._primary_dim
         self.refresh()
 
     def on_mount(self) -> None:
@@ -148,7 +151,7 @@ class TrackInfoWidget(Widget):
 
         result.append(display_title, style=f"bold {self._primary}")
         result.append(" " * spaces_needed)
-        result.append(time_str, style="dim")
+        result.append(time_str, style=self._dim)
         result.append("\n\n")  # Blank line before progress bar
 
         # Progress bar - always show, even when empty
@@ -165,6 +168,6 @@ class TrackInfoWidget(Widget):
             self._primary_dim, self._primary, filled, bar_width
         ):
             result.append("█", style=color)
-        result.append("░" * (bar_width - filled))
+        result.append("░" * (bar_width - filled), style=self._dim)
 
         return result

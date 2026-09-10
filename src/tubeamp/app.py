@@ -7,6 +7,7 @@ import contextlib
 import datetime
 import logging
 import random
+import shutil
 import threading
 import time
 from functools import partial
@@ -21,7 +22,7 @@ from textual.widget import Widget
 from tubeamp.config import AppConfig
 from tubeamp.player import PlaybackState, Player, TrackInfo
 from tubeamp.playlist_session import PlaylistSession
-from tubeamp.themes import get_theme, get_theme_names
+from tubeamp.themes import get_theme, theme_keys
 from tubeamp.theming import apply_theme
 from tubeamp.visualizer import BaseVisualizer, create_visualizer
 from tubeamp.widgets.controls import ControlsWidget
@@ -156,6 +157,17 @@ class TubeAmpApp(App[None]):
         self._youtube = YouTubeService(
             cookies_browser=self._config.youtube.cookies_browser,
         )
+
+        # The analysed backend shells out to ffmpeg. Without it the bars fall
+        # back to the placeholder animation and never say why, which reads as
+        # a broken visualizer rather than a missing dependency.
+        if self._config.visualizer.backend == "analyzed" and not shutil.which("ffmpeg"):
+            logger.warning("ffmpeg not found; the spectrum visualizer stays simulated")
+            self.notify(
+                "ffmpeg not found - the spectrum bars stay simulated",
+                severity="warning",
+                timeout=8,
+            )
 
         self._visualizer = self._make_visualizer()
         self._visualizer.start()
@@ -473,17 +485,17 @@ class TubeAmpApp(App[None]):
 
     def action_theme_picker(self) -> None:
         """Open theme picker modal."""
-        theme_names = get_theme_names()
+        keys = theme_keys()
         self.push_screen(
-            ThemePickerScreen(self._theme, theme_names),
+            ThemePickerScreen(self._theme, keys),
             callback=self._on_theme_selected
         )
 
-    def _on_theme_selected(self, theme_name: str | None) -> None:
+    def _on_theme_selected(self, theme_key: str | None) -> None:
         """Handle theme selection."""
-        if theme_name:
-            self._theme = get_theme(theme_name)
-            self._config.ui.theme = theme_name
+        if theme_key:
+            self._theme = get_theme(theme_key)
+            self._config.ui.theme = self._theme.key
             self._config.save()
             self._apply_theme()
             self.notify(f"Theme changed to {self._theme.name}", timeout=2)

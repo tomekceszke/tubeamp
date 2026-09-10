@@ -10,15 +10,19 @@ from textual.reactive import reactive
 from textual.widget import Widget
 from textual.widgets import Static
 
-from tubeamp.widgets._color import hex_to_rgb, lerp_color
+from tubeamp.themes import DEFAULT_THEME
+from tubeamp.widgets._color import sample_gradient
 
 if TYPE_CHECKING:
+    from collections.abc import Sequence
+
     from textual.app import ComposeResult
 
 
 # Unicode block characters for vertical bar rendering (⅛ increments)
 BAR_CHARS = " ▁▂▃▄▅▆▇█"
 SPECTRUM_ROWS = 7
+DEFAULT_STOPS = DEFAULT_THEME.spectrum_stops
 
 
 class SpectrumWidget(Widget):
@@ -41,14 +45,12 @@ class SpectrumWidget(Widget):
     def __init__(
         self,
         num_bars: int = 40,
-        bar_color: str = "#00ff00",
-        bar_color_top: str = "#00ff00",
+        stops: Sequence[str] = DEFAULT_STOPS,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
         self._num_bars = num_bars
-        self._bar_color = bar_color
-        self._bar_color_top = bar_color_top
+        self._stops = tuple(stops)
 
     @property
     def num_bars(self) -> int:
@@ -58,10 +60,13 @@ class SpectrumWidget(Widget):
     def num_bars(self, count: int) -> None:
         self._num_bars = count
 
-    def set_gradient(self, color_bottom: str, color_top: str) -> None:
-        """Set a vertical gradient from color_bottom (base) to color_top (peaks)."""
-        self._bar_color = color_bottom
-        self._bar_color_top = color_top
+    def set_gradient(self, stops: Sequence[str]) -> None:
+        """Set the vertical gradient, from the bar bases to the peaks.
+
+        Two stops brighten a single hue; three let a theme bend through a
+        middle colour, the way a hardware analyser ramps green to amber to red.
+        """
+        self._stops = tuple(stops)
         self.watch_bar_data(self.bar_data)
 
     def compose(self) -> ComposeResult:
@@ -127,12 +132,11 @@ class SpectrumWidget(Widget):
 
         # Create Rich Text with per-row gradient colors
         text = Text("\n".join(lines))
-        rgb_bottom = hex_to_rgb(self._bar_color)
-        rgb_top = hex_to_rgb(self._bar_color_top)
         offset = 0
         for row, line in enumerate(lines):
-            t = row / max(rows - 1, 1)  # 0 at top (bright), 1 at bottom (dim)
-            color = lerp_color(rgb_top, rgb_bottom, t)
+            # Row 0 is the top of the display, so it takes the last stop
+            t = 1.0 - row / max(rows - 1, 1)
+            color = sample_gradient(self._stops, t)
             text.stylize(color, offset, offset + len(line))
             offset += len(line) + 1  # +1 for the \n separator
         return text
