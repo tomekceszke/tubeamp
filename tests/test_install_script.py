@@ -104,13 +104,6 @@ install_system_dependencies
         for stub in stubs.iterdir():
             stub.chmod(0o755)
 
-        # Only the interpreter is borrowed from the real system. Adding its
-        # directory instead would drag in the very mpv and ffmpeg this is
-        # pretending are absent.
-        python = shutil.which("python3")
-        assert python, "no python3 to lend the stubbed environment"
-        (stubs / "python3").symlink_to(python)
-
         driver = tmp_path / "driver.sh"
         driver.write_text(self.DRIVER)
 
@@ -121,7 +114,10 @@ install_system_dependencies
             timeout=120,
             env={
                 "HOME": str(tmp_path / "home"),
-                "PATH": os.pathsep.join([str(stubs), "/usr/bin", "/bin"]),
+                # Nothing but the stubs: on a real Linux runner /usr/bin holds
+                # a genuine apt-get and ffmpeg, which would answer before the
+                # stand-ins and quietly test the host instead of the branch
+                "PATH": str(stubs),
             },
         )
         return result.stdout + result.stderr
