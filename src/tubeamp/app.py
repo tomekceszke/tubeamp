@@ -324,7 +324,7 @@ class TubeAmpApp(App[None]):
         except Exception as e:
             logger.exception("Search failed")
             self._playlist.set_loading(False)
-            self.notify(f"Search failed: {e}", severity="error", timeout=5)
+            self.notify(f"Search failed: {e}", severity="error", timeout=5, markup=False)
             return
 
         if not tracks:
@@ -582,7 +582,9 @@ class TubeAmpApp(App[None]):
 
         except Exception as e:
             logger.exception("Failed to load more tracks")
-            self.notify(f"Failed to load more tracks: {e}", severity="error", timeout=3)
+            self.notify(
+                f"Failed to load more tracks: {e}", severity="error", timeout=3, markup=False,
+            )
         finally:
             session.is_loading_more = False
             self._playlist.set_loading(False)
@@ -606,6 +608,8 @@ class TubeAmpApp(App[None]):
             "Left/Right=Seek  -/+=Vol  [/]=Bars  s=Shuffle  r=Repeat  t=Theme  "
             "/=Search  F12=Screenshot  h=Help  q=Quit",
             timeout=10,
+            # The bracket keys would otherwise be read as a markup tag
+            markup=False,
         )
 
     def _adjust_visualizer_setting(self, attr: str, delta: int, min_val: int, max_val: int) -> None:
