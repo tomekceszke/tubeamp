@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-09-10
+
+### Fixed
+
+- The pause button used U+23F8, which belongs to the emoji families but declares
+  itself one column wide. Rich, Textual and every width calculation downstream
+  believed the declaration while browsers and emoji-capable terminals drew it
+  across two columns, so the README mock-up rendered crooked on GitHub and PyPI
+  and `ControlsWidget` was one column out wherever a terminal reached for an
+  emoji font. It is now U+2016, which measures the same everywhere
+- The README mock-up is no longer drawn by hand. It is captured from the running
+  player by `scripts/capture_player_art.py`, so it shows the spectrum the widget
+  actually renders rather than an invented two-row wave, and its columns line up
+  because nobody is counting them
+- The architecture diagram was rebuilt: its rows ran between 57 and 60 columns,
+  and the connectors between layers pointed at columns the stubs above them did
+  not occupy
+
 ## [0.1.0] - 2026-09-10
 
 First public release.
@@ -58,5 +76,6 @@ First public release.
   warnings; the mpv wrapper and the YouTube service are covered only through
   their data models
 
-[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.0

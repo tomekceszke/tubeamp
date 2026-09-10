@@ -223,6 +223,16 @@ Logs written to `~/.config/tubeamp/tubeamp.log`:
 2. Implement `action_<name>()` method
 3. Update help text in `action_help()`
 
+**Glyphs in the interface — check the width before adding one:**
+- The trap is a character from the emoji families that declares itself *one*
+  column wide. Rich and Textual believe the declaration; browsers and
+  emoji-capable terminals draw two. `tests/test_docs_art.py` fails the build on
+  one, and that is how `⏸` (U+23F8) left the pause button
+- An honestly wide emoji is fine — everything measures it as two columns
+- The README mock-up is captured from the running player by
+  `scripts/capture_player_art.py --write`, never edited by hand. Change the
+  layout, re-run it
+
 **Widgets with fixed-width art (ControlsWidget):**
 - The widget has a fixed `height`, so any row wider than the content area wraps and
   silently eats a row of the drawing. Resolve a layout from `self.size.width` (which
