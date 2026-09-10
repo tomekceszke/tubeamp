@@ -203,7 +203,7 @@ Once running, press `/` to search YouTube or paste a playlist URL.
 | `Home` / `End`| Jump to first/last    |
 | `F12`         | Save screenshot (SVG) |
 | `h`           | Show help             |
-| `q`           | Quit                  |
+| `q`, `Esc`    | Quit                  |
 
 ## Configuration
 

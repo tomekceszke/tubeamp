@@ -96,6 +96,9 @@ class TubeAmpApp(App[None]):
         Binding("f12", "screenshot", "Screenshot", show=False),
         Binding("h", "help", "Help", show=True),
         Binding("q", "quit", "Quit", show=True),
+        # A dialog binds escape to cancel, and screen bindings win, so this only
+        # fires on the main screen
+        Binding("escape", "quit", "Quit", show=False),
     ]
 
     def __init__(self) -> None:
@@ -606,7 +609,7 @@ class TubeAmpApp(App[None]):
         self.notify(
             "Space=Play/Pause  x=Stop  ,/.=Prev/Next  Up/Down=Navigate  Enter=Play  "
             "Left/Right=Seek  -/+=Vol  [/]=Bars  s=Shuffle  r=Repeat  t=Theme  "
-            "/=Search  F12=Screenshot  h=Help  q=Quit",
+            "/=Search  F12=Screenshot  h=Help  q/Esc=Quit",
             timeout=10,
             # The bracket keys would otherwise be read as a markup tag
             markup=False,
