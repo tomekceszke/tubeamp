@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.4] - 2026-09-10
+
+### Changed
+
+- The Homebrew tap is `tomekceszke/homebrew-tap`, not `homebrew-tubeamp`. Homebrew
+  addresses a formula as `<user>/<tap>/<formula>`, so the old name made it
+  `tomekceszke/tubeamp/tubeamp`, saying the project twice. It now reads
+  `brew install tomekceszke/tap/tubeamp`
+- The README opens with what a first-time reader needs and nothing else: one line
+  of description, the install command, and a screenshot of the player. Features
+  follow, then a Quick Start that is two commands per platform. The detail that
+  used to sit between them — other distributions, WSL2, what the install script
+  does, where releases come from, building from source — is folded into
+  collapsible sections, which GitHub and PyPI both render
+
 ## [0.1.3] - 2026-09-10
 
 ### Fixed
@@ -97,7 +112,8 @@ First public release.
   warnings; the mpv wrapper and the YouTube service are covered only through
   their data models
 
-[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.3...HEAD
+[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.4...HEAD
+[0.1.4]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.4
 [0.1.3]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.3
 [0.1.2]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.2
 [0.1.1]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.1

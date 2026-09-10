@@ -6,154 +6,78 @@ A retro-styled terminal music player that streams audio from YouTube. Think Wina
 curl -fsSL https://raw.githubusercontent.com/tomekceszke/tubeamp/main/install.sh | bash
 ```
 
-macOS and Linux. Installs mpv, ffmpeg and TubeAmp itself, showing every command that
-needs `sudo` and asking before it runs. Then type `tubeamp`.
-
-Rather read it before you run it? Sensible:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/tomekceszke/tubeamp/main/install.sh -o install.sh
-less install.sh && bash install.sh
-```
-
-Windows needs WSL2 first — see [Installation](#installation). Prefer to do it by hand,
-or already have Homebrew or uv? [Quick Start](#quick-start) has the manual steps.
+macOS and Linux. Then run `tubeamp`.
 
 ![TubeAmp playing a track: the spectrum analyser, the transport controls and the queue](https://raw.githubusercontent.com/tomekceszke/tubeamp/main/docs/player.png)
 
-## Quick Start
-
-The one-liner at the top does all of this for you. By hand, if you would rather:
-
-```bash
-# macOS — the formula pulls in mpv and ffmpeg for you
-brew install tomekceszke/tubeamp/tubeamp
-tubeamp
-
-# Linux — system libraries, a tool installer, then TubeAmp
-sudo apt install mpv libmpv2 ffmpeg          # Debian/Ubuntu; see below for others
-uv tool install tubeamp                      # or: pipx install tubeamp
-tubeamp
-```
-
-Windows needs WSL2 first; see [Installation](#installation).
-
 ## Features
 
-- Stream audio directly from YouTube (via yt-dlp + mpv)
-- Real-time spectrum visualizer (offline FFT analysis, synced to playback)
-- YouTube playlist import, search, and lazy-loading queue
-- Full keyboard-driven TUI (via Textual)
-- 10 dark themes, from CRT phosphor to editor classics (see below)
-- Shuffle, repeat (off/all/one), and volume controls
-- Configurable via TOML (`~/.config/tubeamp/config.toml`)
+- Streams audio straight from YouTube — search, or paste a playlist URL
+- Spectrum visualizer driven by real FFT analysis, in sync with playback
+- Playlists page in as you scroll; shuffle and three repeat modes
+- Ten dark themes, from CRT phosphor to editor classics
+- Entirely keyboard-driven, configured in TOML
 
-## System Requirements
+## Quick Start
 
-- **Python 3.11+**
-- **libmpv** — Audio playback engine, loaded through ctypes (required)
-- **ffmpeg** — Audio decoding for the spectrum visualizer (required)
+Rather use your own package manager than run a script?
 
-`yt-dlp` is a Python dependency and is installed into the virtualenv, so it does not
-need to be installed system-wide. TubeAmp puts the virtualenv's `bin` directory on
-`PATH` at startup so mpv's `ytdl_hook` finds that copy rather than an older
-distribution package.
-
-### Installing Dependencies
+**macOS**
 
 ```bash
-# macOS — the mpv formula ships libmpv
-brew install mpv ffmpeg
+brew install tomekceszke/tap/tubeamp
+```
 
+**Linux** — Debian and Ubuntu; other distributions below
+
+```bash
+sudo apt install mpv libmpv2 ffmpeg
+uv tool install tubeamp          # or: pipx install tubeamp
+```
+
+<details>
+<summary><b>Other distributions</b></summary>
+
+TubeAmp needs two system libraries — **libmpv**, which it loads through ctypes to play
+audio, and **ffmpeg**, which decodes tracks for the spectrum analysis — plus Python 3.11
+or newer. `yt-dlp` is a Python dependency and comes with the package, so it does not
+need installing system-wide.
+
+```bash
 # Arch Linux — the mpv package ships libmpv
 sudo pacman -S mpv ffmpeg
 
-# Ubuntu/Debian — the mpv package does NOT pull the shared library in,
-# and ensurepip lives in a separate package
-sudo apt install mpv libmpv2 ffmpeg python3-venv
-
 # Fedora
 sudo dnf install mpv mpv-libs ffmpeg
+
+# openSUSE
+sudo zypper install mpv libmpv2 ffmpeg
 ```
 
-Without the libmpv runtime package TubeAmp refuses to start and names the package to
-install for your system. `./install.sh` handles all of this and verifies the result
-before finishing.
-
-## Installation
-
-Nothing here is a binary you have to trust on faith. Every release is built from a
-tagged commit by a GitHub Actions workflow and published to PyPI through Trusted
-Publishing, so PyPI shows a **Verified provenance** marker linking each file back
-to the commit and the workflow run that produced it.
-
-### The install script
-
-The one-liner at the top of this page runs [`install.sh`](install.sh), which is short
-enough to read in a minute and does exactly four things: finds a Python 3.11+, installs
-libmpv and ffmpeg through your own package manager, puts TubeAmp in its own virtualenv
-under `~/.local/share/tubeamp`, and links it into `~/.local/bin`.
-
-It shows every command before running it and asks first — including the ones needing
-`sudo`, and before it touches your shell's startup file. It never installs Homebrew for
-you; on macOS without it, it stops and points you at [brew.sh](https://brew.sh).
+Then `uv tool install tubeamp`, or `pipx install tubeamp`. Both keep TubeAmp in its own
+environment rather than mixed into your system Python. Don't have either?
 
 ```bash
-bash install.sh --dry-run     # print the whole plan, change nothing
-bash install.sh --yes         # no questions, for scripts and the impatient
-bash install.sh --uninstall   # remove it again, leaving ~/.config/tubeamp alone
+curl -LsSf https://astral.sh/uv/install.sh | sh   # uv
+sudo apt install pipx                             # or pipx, from your package manager
 ```
 
-Re-running it upgrades an existing install. The sections below are the same work done
-by hand, if you would rather not run someone else's script at all.
-
-### macOS
-
-```bash
-brew install tomekceszke/tubeamp/tubeamp
-```
-
-The formula lives in [tomekceszke/homebrew-tubeamp](https://github.com/tomekceszke/homebrew-tubeamp)
-and declares mpv and ffmpeg, so the system dependencies come along with it. No
-Homebrew? Install it from [brew.sh](https://brew.sh) first, or follow the Linux steps
-below, which work on macOS too.
-
-If playback stops working after a while, YouTube has most likely moved on from the
-pinned yt-dlp; `brew upgrade tubeamp` is the fix.
-
-### Linux, and macOS without Homebrew
-
-First libmpv and ffmpeg from your package manager (see *Installing Dependencies*
-above). Then an installer for Python command-line tools, if you do not already have
-one — either works, and both keep TubeAmp in its own environment rather than mixed
-into your system Python:
-
-```bash
-curl -LsSf https://astral.sh/uv/install.sh | sh   # uv, read it first if you like
-# or, from your package manager:
-sudo apt install pipx
-```
-
-Then TubeAmp itself:
-
-```bash
-uv tool install tubeamp     # or: pipx install tubeamp
-tubeamp
-```
-
-**If `tubeamp` comes back as "command not found"**, the install directory is not on
-your `PATH` yet. Both tools install into `~/.local/bin`; `uv tool update-shell` (or
+**If `tubeamp` comes back as "command not found"**, the install directory is not on your
+`PATH` yet. Both tools install into `~/.local/bin`; `uv tool update-shell` (or
 `pipx ensurepath`) adds it, and the change takes effect in a *new* terminal.
 
-Upgrade with `uv tool upgrade tubeamp` — worth doing when a video refuses to play,
-since that is usually a stale yt-dlp.
+Without the libmpv runtime package TubeAmp refuses to start and names the package to
+install for your system, rather than failing at first playback.
 
-### Windows
+</details>
 
-Not supported natively: python-mpv loads `libmpv-2.dll` through ctypes, and the
-official mpv build for Windows does not ship that library. TubeAmp runs under WSL2
-instead, where the Linux instructions apply unchanged and WSLg handles audio — but
-be aware that setting WSL2 up is its own detour, and it needs a reboot:
+<details>
+<summary><b>Windows</b></summary>
+
+Not supported natively: python-mpv loads `libmpv-2.dll` through ctypes, and the official
+mpv build for Windows does not ship that library. TubeAmp runs under WSL2 instead, where
+the Linux instructions apply unchanged and WSLg handles audio — but setting WSL2 up is
+its own detour, and it needs a reboot:
 
 ```powershell
 wsl --install          # in PowerShell as administrator, then reboot
@@ -166,7 +90,60 @@ curl -fsSL https://raw.githubusercontent.com/tomekceszke/tubeamp/main/install.sh
 tubeamp
 ```
 
-### From source
+</details>
+
+<details>
+<summary><b>What the install script does, and reading it first</b></summary>
+
+The one-liner at the top runs [`install.sh`](install.sh), which is short enough to read
+in a minute and does four things: finds a Python 3.11+, installs libmpv and ffmpeg
+through your own package manager, puts TubeAmp in its own virtualenv under
+`~/.local/share/tubeamp`, and links it into `~/.local/bin`.
+
+It shows every command before running it and asks first — including the ones needing
+`sudo`, and before it touches your shell's startup file. It never installs Homebrew for
+you; on macOS without it, it stops and points you at [brew.sh](https://brew.sh).
+
+Reading it before running it is sensible:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tomekceszke/tubeamp/main/install.sh -o install.sh
+less install.sh && bash install.sh
+```
+
+```bash
+bash install.sh --dry-run     # print the whole plan, change nothing
+bash install.sh --yes         # no questions, for scripts and the impatient
+bash install.sh --uninstall   # remove it again, leaving ~/.config/tubeamp alone
+```
+
+Re-running it upgrades an existing install.
+
+</details>
+
+<details>
+<summary><b>Keeping it current, and where the releases come from</b></summary>
+
+If playback stops working after a while, YouTube has most likely moved on from the
+pinned yt-dlp. Upgrading is the fix:
+
+```bash
+brew upgrade tubeamp          # Homebrew
+uv tool upgrade tubeamp       # uv
+bash install.sh               # the install script, re-run
+```
+
+Nothing here is a binary you have to trust on faith. Every release is built from a
+tagged commit by a GitHub Actions workflow and published to PyPI through Trusted
+Publishing, so no token is stored anywhere and each file carries an attestation
+linking it back to the commit and the workflow run that produced it. The Homebrew
+formula lives in [tomekceszke/homebrew-tap](https://github.com/tomekceszke/homebrew-tap)
+and builds from that same published source.
+
+</details>
+
+<details>
+<summary><b>From source</b></summary>
 
 ```bash
 git clone https://github.com/tomekceszke/tubeamp.git
@@ -179,6 +156,8 @@ It is the same `install.sh`, and it notices the difference: run from a checkout 
 installs the working tree in editable mode into `.venv` instead of fetching a release,
 so your edits take effect without reinstalling. `run.sh` rebuilds that virtualenv if a
 Python upgrade has left its interpreter symlinks dangling.
+
+</details>
 
 ## First Run
 
