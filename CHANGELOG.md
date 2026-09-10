@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3] - 2026-09-10
+
+### Fixed
+
+- The Homebrew instructions named a tap that does not exist. The formula lives in
+  `tomekceszke/homebrew-tubeamp`, so the command is
+  `brew install tomekceszke/tubeamp/tubeamp` — the printed one would have failed
+  for anyone who tried it
+
 ## [0.1.2] - 2026-09-10
 
 ### Changed
@@ -88,7 +97,8 @@ First public release.
   warnings; the mpv wrapper and the YouTube service are covered only through
   their data models
 
-[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.2...HEAD
+[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.3...HEAD
+[0.1.3]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.3
 [0.1.2]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.2
 [0.1.1]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.0

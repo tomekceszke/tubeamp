@@ -27,7 +27,7 @@ The one-liner at the top does all of this for you. By hand, if you would rather:
 
 ```bash
 # macOS — the formula pulls in mpv and ffmpeg for you
-brew install tomekceszke/tap/tubeamp
+brew install tomekceszke/tubeamp/tubeamp
 tubeamp
 
 # Linux — system libraries, a tool installer, then TubeAmp
@@ -110,12 +110,14 @@ by hand, if you would rather not run someone else's script at all.
 ### macOS
 
 ```bash
-brew install tomekceszke/tap/tubeamp
+brew install tomekceszke/tubeamp/tubeamp
 ```
 
-The formula declares mpv and ffmpeg, so the system dependencies come along with it.
-No Homebrew? Install it from [brew.sh](https://brew.sh) first, or follow the Linux
-steps below, which work on macOS too.
+The formula lives in [tomekceszke/homebrew-tubeamp](https://github.com/tomekceszke/homebrew-tubeamp)
+and declares mpv and ffmpeg, so the system dependencies come along with it. No
+Homebrew? Install it from [brew.sh](https://brew.sh) first, or follow the Linux steps
+below, which work on macOS too.
+
 If playback stops working after a while, YouTube has most likely moved on from the
 pinned yt-dlp; `brew upgrade tubeamp` is the fix.
 
