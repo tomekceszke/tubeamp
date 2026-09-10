@@ -62,7 +62,7 @@ class TubeAmpApp(App[None]):
     """The TubeAmp terminal music player application."""
 
     TITLE = "♪♫ TubeAmp ♫♪"
-    SUB_TITLE = "It really whips the llama's ass!"
+    SUB_TITLE = "Warm up the tubes"
     CSS_PATH = CSS_PATH
 
     BINDINGS = [

@@ -168,6 +168,17 @@ pytest
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request.
 
+## Disclaimer
+
+TubeAmp is an independent project, not affiliated with, endorsed by or sponsored
+by YouTube, Google, Winamp or Llama Group. Winamp is referenced only to describe
+the kind of interface this takes after.
+
+Streams are resolved with [yt-dlp](https://github.com/yt-dlp/yt-dlp). Playing
+YouTube content outside the official clients may conflict with YouTube's Terms
+of Service — check what applies where you are, and use it for content you are
+entitled to access.
+
 ## License
 
 MIT
