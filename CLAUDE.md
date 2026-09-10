@@ -229,9 +229,13 @@ Logs written to `~/.config/tubeamp/tubeamp.log`:
   emoji-capable terminals draw two. `tests/test_docs_art.py` fails the build on
   one, and that is how `⏸` (U+23F8) left the pause button
 - An honestly wide emoji is fine — everything measures it as two columns
-- The README mock-up is captured from the running player by
-  `scripts/capture_player_art.py --write`, never edited by hand. Change the
-  layout, re-run it
+- The README's hero is a real screenshot, `docs/player.png`, produced by
+  `scripts/capture_player_shot.py` — Textual exports the SVG, headless Chrome
+  rasterises it. Change the layout, re-run it. It is linked by absolute URL
+  because PyPI cannot resolve a relative one
+- It used to be a box-drawn block, which lines up only while every glyph comes
+  from one font. PyPI substitutes for some of them, so the frame's right edge
+  came out wavy there while GitHub looked fine. Do not put the art back
 
 **Widgets with fixed-width art (ControlsWidget):**
 - The widget has a fixed `height`, so any row wider than the content area wraps and

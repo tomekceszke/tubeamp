@@ -19,30 +19,7 @@ less install.sh && bash install.sh
 Windows needs WSL2 first — see [Installation](#installation). Prefer to do it by hand,
 or already have Homebrew or uv? [Quick Start](#quick-start) has the manual steps.
 
-```
-┏━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┓
-┃ ▆▆    ▁▁                            ║                                      ┃
-┃ ██ ▁▁ ██    ▃▃                      ║ VOL: ███████████████████░░░░░  80%   ┃
-┃ ██ ██ ██ ▂▂ ██    ▄▄                ║                                      ┃
-┃ ██ ██ ██ ██ ██ ▅▅ ██    ▇▇    ▃▃    ║ ──────────────────────────────────   ┃
-┃ ██ ██ ██ ██ ██ ██ ██ ██ ██ ▅▅ ██ ▂▂ ║ ┌─────┐┌─────┐┌─────┐ ┌─────┐┌─────┐ ┃
-┃ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ║ │  ■  ││  ▶  ││  ‖  │ │  S  ││  R  │ ┃
-┃ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ██ ║ └─────┘└─────┘└─────┘ └─────┘└─────┘ ┃
-┃────────────────────────────────────────────────────────────────────────────┃
-┃ Around the World                                             2:34 / 7:09   ┃
-┃                                                                            ┃
-┃ █████████████████████████░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░░   ┃
-┃                                                                            ┃
-┃────────────────────────────────────────────────────────────────────────────┃
-┃ ▶›  1. Around the World                                             7:09   ┃
-┃     2. Da Funk                                                      5:28   ┃
-┃     3. Revolution 909                                               5:26   ┃
-┃     4. Burnin'                                                      6:49   ┃
-┃     5. Rollin' & Scratchin'                                         7:27   ┃
-┃                                                                            ┃
-┃                                                                            ┃
-┗━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━┛
-```
+![TubeAmp playing a track: the spectrum analyser, the transport controls and the queue](https://raw.githubusercontent.com/tomekceszke/tubeamp/main/docs/player.png)
 
 ## Quick Start
 

@@ -61,13 +61,26 @@ def test_no_emoji_width_traps(path: Path) -> None:
     )
 
 
-def test_the_readme_mock_up_is_rectangular() -> None:
-    """Every row of the captured player is the same width."""
-    readme = (REPO_ROOT / "README.md").read_text()
-    match = re.search(r"\n```\n([┏┌].*?)\n```\n", readme, re.DOTALL)
-    assert match, "no art block in README.md"
+def test_the_readme_shows_a_real_screenshot() -> None:
+    """The hero image has to survive PyPI, which needs an absolute source.
 
-    lines = match.group(1).splitlines()
-    widths = {len(line) for line in lines}
-    assert len(widths) == 1, f"ragged art: widths {sorted(widths)}"
-    assert len(lines) > 10, "the art looks truncated"
+    A relative path renders on GitHub and breaks on the package page, and a
+    block of box characters renders on GitHub and comes out wavy on PyPI, where
+    the font stack substitutes for some of the glyphs. A PNG does neither.
+    """
+    readme = (REPO_ROOT / "README.md").read_text()
+    match = re.search(r"!\[[^\]]+\]\((https://[^)]+/docs/player\.png)\)", readme)
+    assert match, "no absolute link to docs/player.png in README.md"
+
+    shot = REPO_ROOT / "docs" / "player.png"
+    assert shot.is_file(), "docs/player.png is missing"
+    assert shot.stat().st_size > 10_000, "the screenshot looks truncated"
+    assert shot.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n", "not a PNG"
+
+
+def test_no_hand_drawn_frame_came_back() -> None:
+    """Box-drawn art is what the screenshot replaced; it must not return."""
+    readme = (REPO_ROOT / "README.md").read_text()
+    assert not re.search(r"```\n[┏┌]", readme), (
+        "a box-drawn block is back in README.md; run scripts/capture_player_shot.py"
+    )

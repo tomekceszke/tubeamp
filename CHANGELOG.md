@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-09-10
+
+### Changed
+
+- The README leads with a real screenshot, `docs/player.png`, instead of a block
+  of box characters. Text art lines up only while every glyph in it comes from
+  one font: PyPI's stack substitutes for some of the blocks and rules, so the
+  player's right edge came out wavy there even though GitHub rendered it
+  cleanly. A picture renders identically on both, and carries the colour the
+  code block never could. `scripts/capture_player_shot.py` produces it — Textual
+  exports the screen as SVG, headless Chrome rasterises it
+
 ## [0.1.1] - 2026-09-10
 
 ### Fixed
@@ -76,6 +88,7 @@ First public release.
   warnings; the mpv wrapper and the YouTube service are covered only through
   their data models
 
-[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/tomekceszke/tubeamp/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.2
 [0.1.1]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.1
 [0.1.0]: https://github.com/tomekceszke/tubeamp/releases/tag/v0.1.0
